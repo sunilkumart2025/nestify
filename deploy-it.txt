@@ -1,0 +1,55 @@
+Nestify Deployment Guide
+This guide will help you deploy Nestify to the web using Vercel (Frontend) and Supabase (Backend).
+
+Prerequisites
+GitHub Account
+Vercel Account
+Supabase Project
+Step 1: Push Code to GitHub
+Initialize a Git repository if you haven't already:
+git init
+git add .
+git commit -m "Initial commit"
+Create a new repository on GitHub.
+Push your code:
+git remote add origin https://github.com/YOUR_USERNAME/nestify.git
+git branch -M main
+git push -u origin main
+Step 2: Vercel Deployment (Frontend)
+Log in to Vercel.
+Click "Add New..." -> "Project".
+Import your nestify repository from GitHub.
+Configure Project:
+Framework Preset: Vite
+Root Directory: ./ (default)
+Build Command: npm run build (default)
+Output Directory: dist (default)
+Environment Variables: Expand the "Environment Variables" section and add the values from your 
+.env
+ file:
+VITE_SUPABASE_URL: Your Supabase Project URL
+VITE_SUPABASE_ANON_KEY: Your Supabase Anon Key
+VITE_RESEND_API_KEY: Your Resend API Key
+Click "Deploy".
+Step 3: Supabase Configuration (Backend)
+Go to your Supabase Dashboard.
+Authentication Settings:
+Go to Authentication -> URL Configuration.
+Site URL: Set this to your new Vercel domain (e.g., https://nestify-app.vercel.app).
+Redirect URLs: Add https://nestify-app.vercel.app/** to allow redirects everywhere in the app.
+Database:
+Ensure you have run all SQL scripts (
+otp_schema.sql
+, 
+notices.sql
+, 
+complaints.sql
+) in the SQL Editor.
+Step 4: Resend Configuration (Emails)
+Go to Resend Dashboard.
+(Optional) If you have a custom domain, verify it to send emails to anyone.
+If using the "Testing" tier, verify the email addresses of any users you want to test with.
+Troubleshooting
+White Screen on Deploy: Check the browser console. Often caused by missing Environment Variables.
+Login Fails: Check Supabase "Site URL" settings.
+Emails failing: Check Resend API Key and verified sender status.

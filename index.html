@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/jpg" href="logo.jpg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>new</title>
+</head>
+
+<body>
+  <div id="root"></div>
+  <div id="global-error"
+    style="color: red; padding: 20px; font-family: monospace; white-space: pre-wrap; display: none; background: #fff0f0; border: 2px solid red; margin: 20px;">
+  </div>
+  <script>
+    window.onerror = function (message, source, lineno, colno, error) {
+      console.error("Global Error Caught:", message);
+      var errorDiv = document.getElementById('global-error');
+      errorDiv.style.display = 'block';
+      errorDiv.innerHTML = '<strong>CRITICAL ERROR:</strong>\n' + message + '\n\nLocation: ' + source + ':' + lineno;
+    };
+  </script>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
+</html>

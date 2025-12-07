@@ -1,0 +1,26 @@
+src/components/admin/AddRoomModal.tsx(30,9): error TS2322: Type 'Resolver<{ roomNumber: string; capacity: unknown; type: "AC" | "Non-AC" | "Dormitory"; price: unknown; }, any, { roomNumber: string; capacity: number; type: "AC" | "Non-AC" | "Dormitory"; price: number; }>' is not assignable to type 'Resolver<{ roomNumber: string; capacity: number; type: "AC" | "Non-AC" | "Dormitory"; price: number; }, any, { roomNumber: string; capacity: number; type: "AC" | "Non-AC" | "Dormitory"; price: number; }>'.
+  Types of parameters 'options' and 'options' are incompatible.
+    Type 'ResolverOptions<{ roomNumber: string; capacity: number; type: "AC" | "Non-AC" | "Dormitory"; price: number; }>' is not assignable to type 'ResolverOptions<{ roomNumber: string; capacity: unknown; type: "AC" | "Non-AC" | "Dormitory"; price: unknown; }>'.
+      Type 'unknown' is not assignable to type 'number'.
+src/components/admin/AddRoomModal.tsx(104,42): error TS2345: Argument of type '(data: RoomFormData) => Promise<void>' is not assignable to parameter of type 'SubmitHandler<TFieldValues>'.
+  Types of parameters 'data' and 'data' are incompatible.
+    Type 'TFieldValues' is not assignable to type '{ roomNumber: string; capacity: number; type: "AC" | "Non-AC" | "Dormitory"; price: number; }'.
+      Type 'FieldValues' is missing the following properties from type '{ roomNumber: string; capacity: number; type: "AC" | "Non-AC" | "Dormitory"; price: number; }': roomNumber, capacity, type, price
+src/components/admin/GenerateInvoiceModal.tsx(39,9): error TS2322: Type 'Resolver<{ tenureId: string; month: string; year: unknown; items: { description: string; amount: string; }[]; }, any, { tenureId: string; month: string; year: number; items: { description: string; amount: number; }[]; }>' is not assignable to type 'Resolver<{ tenureId: string; month: string; year: number; items: { description: string; amount: number; }[]; }, any, { tenureId: string; month: string; year: number; items: { description: string; amount: number; }[]; }>'.
+  Types of parameters 'values' and 'values' are incompatible.
+    Type '{ tenureId: string; month: string; year: number; items: { description: string; amount: number; }[]; }' is not assignable to type '{ tenureId: string; month: string; year: unknown; items: { description: string; amount: string; }[]; }'.
+      Types of property 'items' are incompatible.
+        Type '{ description: string; amount: number; }[]' is not assignable to type '{ description: string; amount: string; }[]'.
+          Type '{ description: string; amount: number; }' is not assignable to type '{ description: string; amount: string; }'.
+            Types of property 'amount' are incompatible.
+              Type 'number' is not assignable to type 'string'.
+src/components/admin/GenerateInvoiceModal.tsx(162,42): error TS2345: Argument of type '(data: InvoiceFormData) => Promise<void>' is not assignable to parameter of type 'SubmitHandler<TFieldValues>'.
+  Types of parameters 'data' and 'data' are incompatible.
+    Type 'TFieldValues' is not assignable to type '{ tenureId: string; month: string; year: number; items: { description: string; amount: number; }[]; }'.
+      Type 'FieldValues' is missing the following properties from type '{ tenureId: string; month: string; year: number; items: { description: string; amount: number; }[]; }': tenureId, month, year, items
+src/components/admin/RoomCard.tsx(1,1): error TS6133: 'useState' is declared but its value is never read.
+src/components/tenure/PaymentModal.tsx(8,24): error TS6133: 'AlertCircle' is declared but its value is never read.
+src/pages/admin/Billing.tsx(7,34): error TS6133: 'X' is declared but its value is never read.
+src/pages/admin/Billing.tsx(7,87): error TS6133: 'Filter' is declared but its value is never read.
+src/pages/auth/Login.tsx(6,28): error TS6133: 'KeyRound' is declared but its value is never read.
+src/pages/auth/Login.tsx(6,38): error TS6133: 'Mail' is declared but its value is never read.
