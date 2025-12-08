@@ -200,13 +200,18 @@ export function PaymentModal({ isOpen, onClose, invoice, onSuccess }: PaymentMod
     const handleDownloadReceipt = () => {
         if (invoice && lastTransactionId) {
             generateReceiptPDF({
-                invoiceId: invoice.id,
-                transactionId: lastTransactionId,
-                tenantName: invoice.tenure?.full_name || 'Tenant',
-                amount: invoice.total_amount,
-                date: new Date(),
-                month: invoice.month,
-                hostelName: 'Nestify Hostel'
+                invoice: invoice,
+                paymentDetails: {
+                    gateway_payment_id: lastTransactionId,
+                    gateway_name: paymentMethod,
+                    created_at: new Date().toISOString()
+                },
+                isReceipt: true,
+                hostel: {
+                    name: 'Nestify Hostel',
+                    address: 'Managed Property',
+                    phone: '',
+                }
             });
         }
         handleClose();

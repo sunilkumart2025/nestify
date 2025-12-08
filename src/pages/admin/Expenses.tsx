@@ -1,8 +1,6 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
+import { useState } from 'react';
 import { Button } from '../../components/ui/Button';
-import { Plus, Filter, Download, Briefcase, PieChart, Receipt } from 'lucide-react';
-import { formatCurrency } from '../../lib/utils';
+import { Plus, Briefcase, PieChart, Receipt } from 'lucide-react';
 import { AddExpenseModal } from '../../components/admin/expenses/AddExpenseModal';
 import { VendorModal } from '../../components/admin/expenses/VendorModal';
 import { ExpenseLogTable } from '../../components/admin/expenses/ExpenseLogTable';

@@ -5,6 +5,8 @@ import { APP_THEMES } from '../lib/themes';
 
 interface ThemeProviderProps {
     children: React.ReactNode;
+    defaultTheme?: ThemeId;
+    storageKey?: string;
 }
 
 interface ThemeProviderState {

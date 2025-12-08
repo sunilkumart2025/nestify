@@ -5,7 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { PaymentModal } from '../../components/tenure/PaymentModal';
 import { supabase } from '../../lib/supabase';
 import type { Invoice } from '../../lib/types';
-import { formatCurrency, formatDate } from '../../lib/utils';
+import { formatCurrency } from '../../lib/utils';
 import { toast } from 'react-hot-toast';
 import { generateInvoicePDF } from '../../lib/pdf';
 

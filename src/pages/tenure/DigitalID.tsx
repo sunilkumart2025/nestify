@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { supabase } from '../../lib/supabase';
-import { User, MapPin, Phone, Zap, ShieldCheck, Heart, Flame, Smartphone, RotateCw } from 'lucide-react';
+import { User, Phone, Zap, ShieldCheck, Heart, Flame, Smartphone, RotateCw } from 'lucide-react';
 
 // Icon mapping helper
 const IconMap: any = {

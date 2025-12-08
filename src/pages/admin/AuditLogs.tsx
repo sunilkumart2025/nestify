@@ -7,9 +7,7 @@ import {
     ShieldAlert,
     FileText,
     CreditCard,
-    Trash2,
-
-    ArrowRight
+    Trash2
 } from 'lucide-react';
 import { Input } from '../../components/ui/Input';
 

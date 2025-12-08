@@ -26,7 +26,6 @@ import { ThemeSelector } from '../../components/ui/ThemeSelector';
 
 export function AdminProfile() {
     const [isLoading, setIsLoading] = useState(true);
-    const [isSaving, setIsSaving] = useState(false);
     const [stayKey, setStayKey] = useState('');
     const [copied, setCopied] = useState(false);
     const [isNewProfile, setIsNewProfile] = useState(false);
@@ -80,7 +79,6 @@ export function AdminProfile() {
 
     const handleVerified = async () => {
         if (!pendingData) return;
-        setIsSaving(true);
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('Not authenticated');
@@ -122,8 +120,6 @@ export function AdminProfile() {
         } catch (error: any) {
             console.error(error);
             toast.error(error.message || 'Failed to save profile');
-        } finally {
-            setIsSaving(false);
         }
     };
 

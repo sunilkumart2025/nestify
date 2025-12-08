@@ -1,4 +1,4 @@
-import { APP_THEMES, type ThemeId } from '../../lib/themes';
+import { APP_THEMES } from '../../lib/themes';
 import { useTheme } from '../../context/ThemeContext';
 import { Check, Palette, ChevronDown, ChevronUp } from 'lucide-react';
 import { useState } from 'react';

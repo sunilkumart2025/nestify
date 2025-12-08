@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { formatCurrency } from '../../../lib/utils';
-import { Calendar, Search } from 'lucide-react';
 
 export function ExpenseLogTable() {
     const [expenses, setExpenses] = useState<any[]>([]);
