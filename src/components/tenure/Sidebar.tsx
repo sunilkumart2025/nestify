@@ -14,7 +14,9 @@ import {
     ScanLine,
     BedDouble,
     ThumbsUp,
-    Users
+    Users,
+    Bell,
+    Calendar // Added
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { supabase } from '../../lib/supabase';
@@ -29,6 +31,8 @@ const navigation = [
     { name: 'Payments', href: '/tenure/payments', icon: Receipt },
     { name: 'Complaints', href: '/tenure/complaints', icon: ClipboardList },
     { name: 'Messages', href: '/tenure/messages', icon: MessageSquare },
+    { name: 'Notifications', href: '/tenure/notifications', icon: Bell },
+    { name: 'Calendar', href: '/tenure/calendar', icon: Calendar },
     { name: 'Profile', href: '/tenure/profile', icon: User },
 ];
 
@@ -91,12 +95,6 @@ export function TenureSidebar({ onClose }: TenureSidebarProps) {
                             <Phone className="h-6 w-6 mb-1" />
                             <span className="font-bold">Call</span>
                         </a>
-                        {/* Mail disabled/greyed out if we don't have email (fetched logic didn't include it in select yet, will add if available or just use fallback) */}
-                        {/* Re-checking previous thought: I should try to fetch email too if possible. 
-                            If 'email' is not in admins table (publicly), this might fail. 
-                            Let's assume standard 'email' field exists in admins table from auth linkage or it's 'email' column.
-                            I'll add 'email' to select query to be safe.
-                        */}
                         <a
                             href={`mailto:${(adminData as any).email || ''}`}
                             className={`flex flex-col items-center justify-center p-3 bg-blue-50 hover:bg-blue-100 rounded-xl text-blue-700 transition-colors border border-blue-100 ${!(adminData as any).email ? 'opacity-50 pointer-events-none' : ''}`}
@@ -222,7 +220,7 @@ export function TenureSidebar({ onClose }: TenureSidebarProps) {
 
                 <button
                     onClick={handleLogout}
-                    className="flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-colors text-red-600 hover:bg-red-50 hover:text-red-700 w-full"
+                    className="flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-colors text-slate-400 hover:bg-slate-800 hover:text-white w-full"
                 >
                     <LogOut className="mr-3 h-5 w-5" />
                     Sign Out

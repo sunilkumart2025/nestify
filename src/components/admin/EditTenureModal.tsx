@@ -10,7 +10,7 @@ import type { Tenure, Room } from '../../lib/types';
 
 const tenureSchema = z.object({
     roomId: z.string().optional(),
-    status: z.enum(['pending', 'active']),
+    status: z.enum(['pending', 'active', 'inactive']),
 });
 
 type TenureFormData = z.infer<typeof tenureSchema>;
@@ -106,6 +106,7 @@ export function EditTenureModal({ isOpen, onClose, onSuccess, tenure }: EditTenu
                     >
                         <option value="pending">Pending</option>
                         <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
                     </select>
                 </div>
 

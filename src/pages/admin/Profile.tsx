@@ -19,6 +19,8 @@ const profileSchema = z.object({
 type ProfileFormData = z.infer<typeof profileSchema>;
 
 import { TwoFactorToggle } from '../../components/auth/TwoFactorToggle';
+import { ActiveSessionsList } from '../../components/auth/ActiveSessionsList';
+import { ThemeSelector } from '../../components/ui/ThemeSelector';
 
 // ... existing imports
 
@@ -246,24 +248,21 @@ export function AdminProfile() {
 
                 {/* 2FA Section - Added here */}
                 {!isNewProfile && (
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                         <TwoFactorToggle
                             isEnabled={is2FAEnabled}
                             email={userEmail}
                             userType="admin"
                             onUpdate={setIs2FAEnabled}
                         />
+
+                        {/* Session Fortress: Active Devices */}
+                        <ActiveSessionsList />
                     </div>
                 )}
-
-
-
-                <div className="flex justify-end">
-                    <Button type="submit" isLoading={isSaving} className="w-full sm:w-auto">
-                        {isNewProfile ? 'Create Profile' : 'Save Changes'}
-                    </Button>
-                </div>
             </form>
+
+            {!isNewProfile && <ThemeSelector />}
         </div>
     );
 }

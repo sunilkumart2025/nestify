@@ -11,8 +11,9 @@ import type { Room } from '../../lib/types';
 
 const roomSchema = z.object({
     roomNumber: z.string().min(1, 'Room number is required'),
+    floorNumber: z.string().optional(), // Changed to string for flexibility
     capacity: z.coerce.number().min(1, 'Capacity must be at least 1'),
-    type: z.enum(['AC', 'Non-AC', 'Dormitory']),
+    type: z.string().min(1, 'Room type is required'),
     price: z.coerce.number().min(0, 'Price must be positive'),
 });
 
@@ -33,14 +34,16 @@ export function AddRoomModal({ isOpen, onClose, onSuccess, roomToEdit }: AddRoom
     useEffect(() => {
         if (roomToEdit) {
             setValue('roomNumber', roomToEdit.room_number);
+            setValue('floorNumber', String(roomToEdit.floor_number || ''));
             setValue('capacity', String(roomToEdit.capacity) as any);
             setValue('type', roomToEdit.type);
             setValue('price', String(roomToEdit.price) as any);
         } else {
             reset({
                 roomNumber: '',
+                floorNumber: '',
                 capacity: 1 as any,
-                type: 'Non-AC',
+                type: 'Non-AC', // Default matching DB
                 price: 0 as any,
             });
         }
@@ -56,6 +59,7 @@ export function AddRoomModal({ isOpen, onClose, onSuccess, roomToEdit }: AddRoom
                     .from('rooms')
                     .update({
                         room_number: data.roomNumber,
+                        floor_number: data.floorNumber, // Now text
                         capacity: data.capacity,
                         type: data.type,
                         price: data.price,
@@ -80,6 +84,7 @@ export function AddRoomModal({ isOpen, onClose, onSuccess, roomToEdit }: AddRoom
                     .insert({
                         admin_id: user.id,
                         room_number: data.roomNumber,
+                        floor_number: data.floorNumber, // Now text
                         capacity: data.capacity,
                         type: data.type,
                         price: data.price,
@@ -102,20 +107,38 @@ export function AddRoomModal({ isOpen, onClose, onSuccess, roomToEdit }: AddRoom
             title={roomToEdit ? 'Edit Room' : 'Add New Room'}
         >
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                <Input
-                    label="Room Number"
-                    placeholder="e.g. 101"
-                    {...register('roomNumber')}
-                    error={errors.roomNumber?.message}
-                />
+                <div className="grid grid-cols-2 gap-4">
+                    <Input
+                        label="Room Number"
+                        placeholder="e.g. 101"
+                        {...register('roomNumber')}
+                        error={errors.roomNumber?.message}
+                    />
+                    <Input
+                        label="Floor"
+                        type="text" // Changed to text input
+                        placeholder="e.g. 1st Floor"
+                        {...register('floorNumber')}
+                        error={errors.floorNumber?.message}
+                    />
+                </div>
 
-                <Input
-                    label="Capacity"
-                    type="number"
-                    placeholder="e.g. 2"
-                    {...register('capacity')}
-                    error={errors.capacity?.message}
-                />
+                <div className="grid grid-cols-2 gap-4">
+                    <Input
+                        label="Capacity"
+                        type="number"
+                        placeholder="e.g. 2"
+                        {...register('capacity')}
+                        error={errors.capacity?.message}
+                    />
+                    <Input
+                        label="Price (Monthly Rent)"
+                        type="number"
+                        placeholder="e.g. 5000"
+                        {...register('price')}
+                        error={errors.price?.message}
+                    />
+                </div>
 
                 <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-700">Room Type</label>
@@ -129,14 +152,6 @@ export function AddRoomModal({ isOpen, onClose, onSuccess, roomToEdit }: AddRoom
                     </select>
                     {errors.type && <p className="text-sm text-red-500">{errors.type.message}</p>}
                 </div>
-
-                <Input
-                    label="Price (Monthly Rent)"
-                    type="number"
-                    placeholder="e.g. 5000"
-                    {...register('price')}
-                    error={errors.price?.message}
-                />
 
                 <div className="flex justify-end space-x-3 mt-6">
                     <Button type="button" variant="ghost" onClick={onClose}>

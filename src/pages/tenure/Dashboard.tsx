@@ -10,6 +10,8 @@ import { DigitalID } from './DigitalID';
 import { RoomInfo } from './RoomInfo';
 import { TenureFeedback } from './Feedback';
 import { Roommates } from './Roommates';
+import { TenureNotifications } from './Notifications';
+import { TenureCalendar } from './Calendar';
 
 export function TenureDashboard() {
     return (
@@ -22,6 +24,8 @@ export function TenureDashboard() {
                 <Route path="room-info" element={<RoomInfo />} />
                 <Route path="roommates" element={<Roommates />} />
                 <Route path="feedback" element={<TenureFeedback />} />
+                <Route path="notifications" element={<TenureNotifications />} />
+                <Route path="calendar" element={<TenureCalendar />} />
                 <Route path="digital-id" element={<DigitalID />} />
                 <Route path="profile" element={<TenureProfile />} />
             </Route>

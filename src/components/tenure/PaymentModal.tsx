@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { CheckCircle2, ShieldCheck, CreditCard, Smartphone, Loader2, Lock } from 'lucide-react';
 import { sendEmail, EmailTemplates } from '../../lib/email';
+import { generateReceiptPDF } from '../../lib/pdf';
 
 interface PaymentModalProps {
     isOpen: boolean;
@@ -20,11 +21,13 @@ type PaymentStep = 'method' | 'processing' | 'success';
 export function PaymentModal({ isOpen, onClose, invoice, onSuccess }: PaymentModalProps) {
     const [step, setStep] = useState<PaymentStep>('method');
     const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cashfree'>('razorpay');
+    const [lastTransactionId, setLastTransactionId] = useState<string>('');
 
     // Reset state when opening
     useEffect(() => {
         if (isOpen) {
             setStep('method');
+            setLastTransactionId('');
         }
     }, [isOpen]);
 
@@ -43,13 +46,13 @@ export function PaymentModal({ isOpen, onClose, invoice, onSuccess }: PaymentMod
     const handleRazorpayPayment = async () => {
         setStep('processing');
         try {
-            // 1. Fetch Keys
-            const { data: keys, error: keyError } = await supabase.rpc('get_payment_config', {
-                target_admin_id: invoice.admin_id
+            // 1. Create Order Session (Server-Side)
+            const { data: orderData, error: orderError } = await supabase.rpc('create_razorpay_order', {
+                p_invoice_id: invoice.id
             });
 
-            if (keyError || !keys?.razorpay_key_id) {
-                throw new Error('Payment configuration missing. Please contact Admin.');
+            if (orderError || !orderData?.success) {
+                throw new Error(orderData?.message || 'Failed to initialize payment');
             }
 
             // 2. Load SDK
@@ -60,15 +63,15 @@ export function PaymentModal({ isOpen, onClose, invoice, onSuccess }: PaymentMod
 
             // 3. Initialize Razorpay Options
             const options = {
-                key: keys.razorpay_key_id,
-                amount: invoice.total_amount * 100, // paise
+                key: orderData.key_id,
+                amount: orderData.amount, // from server
                 currency: "INR",
                 name: "Nestify Hostel",
                 description: `Invoice #${invoice.id.substring(0, 8).toUpperCase()}`,
                 image: "https://cdn-icons-png.flaticon.com/512/2111/2111646.png",
-                order_id: "", // Client-Side Success
+                order_id: orderData.order_id, // Server-Side Order ID
                 handler: async function (response: any) {
-                    // Success Callback - Record in DB securely via RPC
+                    // Success Callback
                     try {
                         const { data: rpcData, error: rpcError } = await supabase.rpc('record_payment_success', {
                             p_invoice_id: invoice.id,
@@ -76,9 +79,9 @@ export function PaymentModal({ isOpen, onClose, invoice, onSuccess }: PaymentMod
                             p_admin_id: invoice.admin_id,
                             p_gateway_name: 'razorpay',
                             p_gateway_payment_id: response.razorpay_payment_id,
-                            p_gateway_order_id: response.razorpay_order_id || 'direct_capture',
-                            p_gateway_signature: response.razorpay_signature || '',
-                            p_amount: invoice.total_amount,
+                            p_gateway_order_id: response.razorpay_order_id,
+                            p_gateway_signature: response.razorpay_signature,
+                            p_amount: invoice.total_amount, // Still pass for double-check
                             p_payment_mode: 'online',
                             p_customer_name: invoice.tenure?.full_name || 'Tenant',
                             p_customer_email: invoice.tenure?.email || 'email@example.com'
@@ -86,12 +89,16 @@ export function PaymentModal({ isOpen, onClose, invoice, onSuccess }: PaymentMod
 
                         if (rpcError || (rpcData && !rpcData.success)) {
                             console.error('DB Update Failed:', rpcError || rpcData);
-                            toast.error('Payment verified but database update failed. Please contact admin.');
+                            toast.error(rpcData?.error || 'Payment verification failed.');
                             return;
                         }
 
+                        setLastTransactionId(response.razorpay_payment_id);
                         setStep('success');
+
+                        // Auto Email
                         sendReceiptEmail(invoice, response.razorpay_payment_id);
+
                     } catch (dbErr) {
                         console.error(dbErr);
                         toast.error('Critical Error saving payment.');
@@ -124,50 +131,51 @@ export function PaymentModal({ isOpen, onClose, invoice, onSuccess }: PaymentMod
     const handleCashfreePayment = async () => {
         setStep('processing');
         try {
-            // 1. Load SDK
+            // 1. Load SDK (v3)
             const res = await loadScript('https://sdk.cashfree.com/js/v3/cashfree.js');
             if (!res) {
                 throw new Error('Cashfree SDK failed to load');
             }
 
-            // 2. Create Order Session (via Backend RPC)
-            const returnUrl = window.location.origin + window.location.pathname + '?order_id={order_id}&invoice_id=' + invoice.id;
-
-            const { data: sessionData, error: sessionError } = await supabase.rpc('create_cashfree_order', {
+            // 2. Create Order (Server-Side)
+            const { data: orderData, error: orderError } = await supabase.rpc('create_cashfree_order', {
                 p_invoice_id: invoice.id,
                 p_amount: invoice.total_amount,
-                p_customer_id: invoice.tenure_id,
+                p_customer_id: invoice.tenure_id, // Use tenure_id as customer_id
                 p_customer_name: invoice.tenure?.full_name || 'Tenant',
-                p_customer_email: invoice.tenure?.email || 'tenant@example.com',
+                p_customer_email: invoice.tenure?.email || 'email@example.com',
                 p_customer_phone: invoice.tenure?.phone || '9999999999',
                 p_admin_id: invoice.admin_id,
-                p_return_url: returnUrl
+                p_return_url: window.location.href // Redirect back to same page
             });
 
-            if (sessionError || !sessionData?.success) {
-                console.error('Session Creation Failed:', sessionError || sessionData);
-                throw new Error(sessionData?.message || 'Failed to initiate payment session');
+            if (orderError || !orderData?.success) {
+                console.error('Order Creation Failed:', orderData);
+                throw new Error(orderData?.message || 'Failed to initialize Cashfree');
             }
 
-            // 3. Initialize Checkout
+            // 3. Initialize Cashfree
             const cashfree = new (window as any).Cashfree({
-                mode: "sandbox"
+                mode: "sandbox" // explicit sandbox for now based on RPC
             });
 
-            // Redirect Flow (Better reliability than Popup)
+            // 4. Checkout
             cashfree.checkout({
-                paymentSessionId: sessionData.payment_session_id,
-                redirectTarget: "_self",
+                paymentSessionId: orderData.payment_session_id,
+                returnUrl: window.location.href, // Redundant but good for safety
+                redirectTarget: "_self" // Redirect behavior
             });
+
+            // Note: Cashfree redirects away, so 'success' handling happens on page reload or webhook.
+            // But for SPA, if it opens in popup (if configured) or redirects, we lose state.
+            // For this implementation, we assume redirect. We won't setStep('success') immediately.
 
         } catch (error: any) {
-            console.error(error);
+            console.error('Cashfree Error:', error);
             toast.error(error.message);
             setStep('method');
         }
     };
-
-
 
     const sendReceiptEmail = async (inv: Invoice, txId: string) => {
         try {
@@ -187,6 +195,21 @@ export function PaymentModal({ isOpen, onClose, invoice, onSuccess }: PaymentMod
         } catch (err) {
             console.error('Failed to send receipt email', err);
         }
+    };
+
+    const handleDownloadReceipt = () => {
+        if (invoice && lastTransactionId) {
+            generateReceiptPDF({
+                invoiceId: invoice.id,
+                transactionId: lastTransactionId,
+                tenantName: invoice.tenure?.full_name || 'Tenant',
+                amount: invoice.total_amount,
+                date: new Date(),
+                month: invoice.month,
+                hostelName: 'Nestify Hostel'
+            });
+        }
+        handleClose();
     };
 
     const handleClose = () => {
@@ -324,7 +347,7 @@ export function PaymentModal({ isOpen, onClose, invoice, onSuccess }: PaymentMod
                         <div className="w-full bg-slate-50 rounded-xl p-4 border border-slate-100 mb-8 max-w-xs">
                             <div className="flex justify-between text-sm mb-2">
                                 <span className="text-slate-500">Transaction ID</span>
-                                <span className="font-mono text-slate-900">TXN-{Math.random().toString(36).substr(2, 9).toUpperCase()}</span>
+                                <span className="font-mono text-slate-900">{lastTransactionId || 'Pending'}</span>
                             </div>
                             <div className="flex justify-between text-sm">
                                 <span className="text-slate-500">Date</span>
@@ -333,7 +356,7 @@ export function PaymentModal({ isOpen, onClose, invoice, onSuccess }: PaymentMod
                         </div>
 
                         <Button
-                            onClick={handleClose}
+                            onClick={handleDownloadReceipt}
                             className="w-full bg-green-600 hover:bg-green-700 text-white"
                         >
                             Download Receipt

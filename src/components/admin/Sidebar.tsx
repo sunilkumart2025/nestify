@@ -17,7 +17,9 @@ import {
     Mail,
     ScanLine,
     FileClock,
-    ThumbsUp
+    ThumbsUp,
+    Bell,
+    Calendar // Added
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { supabase } from '../../lib/supabase';
@@ -35,6 +37,9 @@ const navigation = [
     { name: 'Feedback', href: '/admin/feedback', icon: ThumbsUp },
     { name: 'Audit Logs', href: '/admin/audit-logs', icon: FileClock },
     { name: 'Payments', href: '/admin/payments', icon: CreditCard },
+    { name: 'Expenses', href: '/admin/expenses', icon: Receipt }, // Added
+    { name: 'Notifications', href: '/admin/notifications', icon: Bell },
+    { name: 'Calendar', href: '/admin/calendar', icon: Calendar },
     { name: 'Profile', href: '/admin/profile', icon: Settings },
 ];
 

@@ -2,9 +2,13 @@ import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { AdminSidebar } from '../admin/Sidebar';
 import { Menu } from 'lucide-react';
+import { useDeviceTracker } from '../../hooks/useDeviceTracker';
 
 export function AdminLayout() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+    // Activate Fortress Protocol (Device Tracking)
+    useDeviceTracker();
 
     return (
         <div className="flex h-screen overflow-hidden bg-slate-50 relative">

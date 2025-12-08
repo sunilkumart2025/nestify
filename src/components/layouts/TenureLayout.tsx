@@ -2,12 +2,19 @@ import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { TenureSidebar } from '../tenure/Sidebar';
 import { Menu } from 'lucide-react';
+import { useDeviceTracker } from '../../hooks/useDeviceTracker'; // Import Hook
+import { WelcomeBanner } from '../tenure/WelcomeBanner';
 
 export function TenureLayout() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+    // Activate Fortress Protocol (Device Tracking for Tenants)
+    useDeviceTracker();
+
     return (
         <div className="flex h-screen overflow-hidden bg-slate-50 relative">
+            <WelcomeBanner />
+            {/* ... (rest of simple layout) */}
             {/* Mobile Sidebar Overlay */}
             {isSidebarOpen && (
                 <div

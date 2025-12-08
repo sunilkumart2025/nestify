@@ -9,6 +9,8 @@ import { toast } from 'react-hot-toast';
 import { Home, User } from 'lucide-react';
 import { OTPVerification } from '../../components/auth/OTPVerification';
 import { TwoFactorToggle } from '../../components/auth/TwoFactorToggle';
+import { ActiveSessionsList } from '../../components/auth/ActiveSessionsList';
+import { ThemeSelector } from '../../components/ui/ThemeSelector';
 
 const profileSchema = z.object({
     fullName: z.string().min(2, 'Name is required'),
@@ -131,6 +133,8 @@ export function TenureProfile() {
                 </div>
             </div>
 
+
+
             <form onSubmit={handleSubmit(onSubmit)} className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 space-y-6">
                 <div className="flex items-center gap-3 mb-4">
                     <User className="h-5 w-5 text-slate-400" />
@@ -165,6 +169,10 @@ export function TenureProfile() {
                     </Button>
                 </div>
             </form>
+
+            <ActiveSessionsList hideIp={true} />
+
+            <ThemeSelector />
         </div>
     );
 }

@@ -83,7 +83,37 @@ export function BulkGenerateBillModal({ isOpen, onClose, tenures, onSuccess }: B
             ];
 
             const subtotal = rent + electricity + water + maintenance;
-            const total = subtotal;
+
+            // Fee Calculation (Same as Billing.tsx)
+            const BILLING_RULES = {
+                FIXED_FEE: 5,
+                PLATFORM_PERCENT: 0.006, // 0.6%
+                DEV_PERCENT: 0.0005,     // 0.05%
+                SUPPORT_PERCENT: 0.0015, // 0.15%
+                MAINT_PERCENT: 0.002,    // 0.2%
+                GATEWAY_PERCENT: 0.0015  // 0.15%
+            };
+
+            const platformShare = Math.round(subtotal * BILLING_RULES.PLATFORM_PERCENT);
+            const devShare = Math.round(subtotal * BILLING_RULES.DEV_PERCENT);
+            const supportShare = Math.round(subtotal * BILLING_RULES.SUPPORT_PERCENT);
+            const maintShare = Math.round(subtotal * BILLING_RULES.MAINT_PERCENT);
+            const gatewayFee = Math.round(subtotal * BILLING_RULES.GATEWAY_PERCENT);
+            const fixedFee = BILLING_RULES.FIXED_FEE;
+
+            const totalFees = fixedFee + platformShare + devShare + supportShare + maintShare + gatewayFee;
+            const total = subtotal + totalFees;
+
+            // Update Items with Fees
+            const fullItems = [
+                ...items,
+                { description: 'Fixed Service Fee', amount: fixedFee, type: 'fee' },
+                { description: `Platform Share (${(BILLING_RULES.PLATFORM_PERCENT * 100).toFixed(1)}%)`, amount: platformShare, type: 'fee' },
+                { description: `Development Share (${(BILLING_RULES.DEV_PERCENT * 100).toFixed(2)}%)`, amount: devShare, type: 'fee' },
+                { description: `Support Share (${(BILLING_RULES.SUPPORT_PERCENT * 100).toFixed(2)}%)`, amount: supportShare, type: 'fee' },
+                { description: `System Maintenance (${(BILLING_RULES.MAINT_PERCENT * 100).toFixed(1)}%)`, amount: maintShare, type: 'fee' },
+                { description: `Gateway Fee (${(BILLING_RULES.GATEWAY_PERCENT * 100).toFixed(2)}%)`, amount: gatewayFee, type: 'fee' }
+            ];
 
             // Prepare Batch Payload
             const invoicesToInsert = Array.from(selectedIds).map(tenureId => ({
@@ -93,7 +123,7 @@ export function BulkGenerateBillModal({ isOpen, onClose, tenures, onSuccess }: B
                 due_date: formData.due_date,
                 year: new Date(formData.due_date).getFullYear(),
                 status: 'pending',
-                items: items,
+                items: fullItems,
                 subtotal: subtotal,
                 total_amount: total
             }));

@@ -1,15 +1,19 @@
--- Create a secure function to generate Razorpay Order (Tests Credentials)
--- This function proves that BOTH Key ID and Key Secret are valid by making a server-side call.
+-- Enable Extensions for Crypto and HTTP calls
+create extension if not exists pgcrypto with schema extensions;
+create extension if not exists http with schema extensions;
 
+-- Function to create Razorpay Order securely from Backend
 create or replace function create_razorpay_order(
-  p_amount numeric, -- Amount in INR (will be converted to paise)
-  p_admin_id uuid
+  p_invoice_id uuid
 )
 returns json
 language plpgsql
 security definer
 as $$
 declare
+  v_admin_id uuid;
+  v_amount numeric;
+  v_currency text := 'INR';
   v_key_id text;
   v_key_secret text;
   v_api_url text := 'https://api.razorpay.com/v1/orders';
@@ -18,20 +22,29 @@ declare
   v_response_body text;
   v_result json;
 begin
-  -- 1. Fetch Keys
+  -- 1. Get Invoice Details & Keys
+  select admin_id, total_amount
+  into v_admin_id, v_amount
+  from invoices
+  where id = p_invoice_id;
+
+  if v_admin_id is null then
+    return json_build_object('success', false, 'message', 'Invoice not found');
+  end if;
+
   select razorpay_key_id, razorpay_key_secret
   into v_key_id, v_key_secret
   from admins
-  where id = p_admin_id;
+  where id = v_admin_id;
 
   if v_key_id is null or v_key_secret is null then
-    return json_build_object('success', false, 'message', 'Razorpay keys not configured');
+     return json_build_object('success', false, 'message', 'Razorpay keys not configured by Admin');
   end if;
 
-  -- 2. Construct Basic Auth Header
+  -- 2. Prepare Auth Header (Basic Auth)
   v_auth_header := 'Basic ' || encode((v_key_id || ':' || v_key_secret)::bytea, 'base64');
 
-  -- 3. Make HTTP Request
+  -- 3. Make HTTP Request to Razorpay
   select status, content::text
   into v_response_status, v_response_body
   from extensions.http((
@@ -43,10 +56,10 @@ begin
     ],
     'application/json',
     json_build_object(
-      'amount', (p_amount * 100)::integer, -- Convert to paise
-      'currency', 'INR',
-      'receipt', 'test_verification_' || floor(extract(epoch from now())),
-      'payment_capture', 1
+      'amount', (v_amount * 100)::int, -- Convert to paise
+      'currency', v_currency,
+      'receipt', p_invoice_id::text,
+      'notes', json_build_object('source', 'nestify_app')
     )::text
   ));
 
@@ -54,12 +67,13 @@ begin
   if v_response_status between 200 and 299 then
     v_result := v_response_body::json;
     return json_build_object(
-      'success', true, 
-      'order_id', v_result->>'id',
-      'key_id', v_key_id -- Return key_id so frontend can initialize SDK
+       'success', true,
+       'order_id', v_result->>'id',
+       'amount', v_result->>'amount',
+       'key_id', v_key_id -- Return key_id for frontend
     );
   else
-    return json_build_object('success', false, 'message', 'Razorpay API Error: ' || v_response_body);
+    return json_build_object('success', false, 'message', 'Razorpay Error: ' || v_response_body);
   end if;
 
 exception when others then

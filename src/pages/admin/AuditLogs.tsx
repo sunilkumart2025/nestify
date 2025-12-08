@@ -1,98 +1,154 @@
-
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { ShieldCheck, LogIn, CreditCard, Trash2, Edit, FileText } from 'lucide-react';
-import { formatDistanceToNow, format } from 'date-fns';
+import { format } from 'date-fns';
+import {
+    Search,
+    Filter,
+    ShieldAlert,
+    FileText,
+    CreditCard,
+    Trash2,
+
+    ArrowRight
+} from 'lucide-react';
+import { Input } from '../../components/ui/Input';
+
+
+interface AuditLog {
+    id: string;
+    action: string;
+    entity_type: string;
+    entity_id: string;
+    details: any;
+    created_at: string;
+    user_email?: string; // Joined manually or via view
+}
 
 export function AuditLogs() {
-    const [logs, setLogs] = useState<any[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [logs, setLogs] = useState<AuditLog[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [filter, setFilter] = useState('');
 
     useEffect(() => {
-        const fetchLogs = async () => {
+        fetchLogs();
+    }, []);
+
+    const fetchLogs = async () => {
+        try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            // Fetch logs linked to this Admin (includes self and tenants)
-            const { data } = await supabase
+            const { data, error } = await supabase
                 .from('audit_logs')
                 .select('*')
                 .eq('admin_id', user.id)
                 .order('created_at', { ascending: false })
                 .limit(50);
 
-            if (data) setLogs(data);
-            setIsLoading(false);
-        };
-
-        fetchLogs();
-    }, []);
-
-    const getIcon = (action: string) => {
-        if (action.includes('LOGIN')) return <LogIn className="h-4 w-4 text-blue-500" />;
-        if (action.includes('PAYMENT')) return <CreditCard className="h-4 w-4 text-green-500" />;
-        if (action.includes('DELETE')) return <Trash2 className="h-4 w-4 text-red-500" />;
-        if (action.includes('UPDATE') || action.includes('EDIT')) return <Edit className="h-4 w-4 text-orange-500" />;
-        return <FileText className="h-4 w-4 text-slate-500" />;
+            if (error) throw error;
+            setLogs(data || []);
+        } catch (error) {
+            console.error('Error fetching logs:', error);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    if (isLoading) {
-        return (
-            <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-        );
-    }
+    const getIcon = (action: string) => {
+        if (action.includes('PAYMENT')) return <CreditCard className="h-4 w-4 text-green-600" />;
+        if (action.includes('DELETE')) return <Trash2 className="h-4 w-4 text-red-600" />;
+        if (action.includes('INVOICE')) return <FileText className="h-4 w-4 text-blue-600" />;
+        return <ShieldAlert className="h-4 w-4 text-slate-600" />;
+    };
+
+    const filteredLogs = logs.filter(log =>
+        log.action.toLowerCase().includes(filter.toLowerCase()) ||
+        log.entity_type.toLowerCase().includes(filter.toLowerCase())
+    );
 
     return (
-        <div className="max-w-4xl mx-auto space-y-8">
-            <div>
-                <h1 className="text-2xl font-bold text-slate-900">Audit Logs</h1>
-                <p className="text-slate-600">Timeline of critical activities and security events</p>
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <div>
+                    <h1 className="text-2xl font-bold text-slate-900">Security Audit Logs</h1>
+                    <p className="text-slate-500">Track all critical system activities and changes</p>
+                </div>
+                <div className="bg-amber-50 text-amber-800 px-3 py-1 rounded-full text-xs font-medium border border-amber-200 flex items-center gap-2">
+                    <ShieldAlert className="h-3 w-3" />
+                    Security Monitor Active
+                </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-                {logs.length === 0 ? (
-                    <div className="text-center py-16">
-                        <div className="mx-auto h-12 w-12 text-slate-400 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-                            <ShieldCheck className="h-6 w-6" />
-                        </div>
-                        <h3 className="text-lg font-medium text-slate-900">No logs found</h3>
-                        <p className="mt-1 text-slate-500">Activity will appear here once recorded.</p>
-                    </div>
-                ) : (
-                    <div className="divide-y divide-slate-100">
-                        {logs.map((log) => (
-                            <div key={log.id} className="p-4 hover:bg-slate-50 transition-colors flex gap-4">
-                                <div className="mt-1 p-2 bg-slate-100 rounded-lg h-fit">
-                                    {getIcon(log.action)}
-                                </div>
-                                <div className="flex-1">
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <p className="font-semibold text-slate-900">{log.action.replace(/_/g, ' ')}</p>
-                                            <p className="text-sm text-slate-600 mt-1">
-                                                {JSON.stringify(log.details) === '{}' ? 'No details' : JSON.stringify(log.details).substring(0, 100)}
-                                            </p>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="text-xs font-medium text-slate-500">
-                                                {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
-                                            </p>
-                                            <p className="text-[10px] text-slate-400 mt-1">
-                                                {format(new Date(log.created_at), 'MMM d, h:mm a')}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="mt-2 flex items-center gap-4 text-xs text-slate-400 font-mono">
-                                        <span>User: {log.user_id?.substring(0, 8)}...</span>
-                                        {log.ip_address && <span>IP: {log.ip_address}</span>}
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
+            {/* Filter Bar */}
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+                <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                        placeholder="Search logs by action or type..."
+                        className="pl-10"
+                        value={filter}
+                        onChange={(e) => setFilter(e.target.value)}
+                    />
+                </div>
+                <button className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50">
+                    <Filter className="h-4 w-4" />
+                    Filter
+                </button>
+            </div>
+
+            {/* Logs List */}
+            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                        <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 uppercase text-xs">
+                            <tr>
+                                <th className="px-6 py-4 font-semibold">Action</th>
+                                <th className="px-6 py-4 font-semibold">Details</th>
+                                <th className="px-6 py-4 font-semibold">Entity</th>
+                                <th className="px-6 py-4 font-semibold">Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={4} className="px-6 py-8 text-center text-slate-400">Loading audit trail...</td>
+                                </tr>
+                            ) : filteredLogs.length === 0 ? (
+                                <tr>
+                                    <td colSpan={4} className="px-6 py-8 text-center text-slate-400">No logs found</td>
+                                </tr>
+                            ) : (
+                                filteredLogs.map((log) => (
+                                    <tr key={log.id} className="hover:bg-slate-50 transition-colors group">
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="p-2 bg-slate-100 rounded-lg group-hover:bg-white border border-slate-200 transition-colors">
+                                                    {getIcon(log.action)}
+                                                </div>
+                                                <span className="font-medium text-slate-900">{log.action.replace(/_/g, ' ')}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-600">
+                                            <div className="max-w-xs truncate">
+                                                {JSON.stringify(log.details) === '{}' ? '-' :
+                                                    Object.entries(log.details).map(([k, v]) => `${k}: ${v}`).join(', ')
+                                                }
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-slate-600 text-xs font-medium border border-slate-200">
+                                                {log.entity_type.toUpperCase()}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-500 font-mono text-xs">
+                                            {format(new Date(log.created_at), 'MMM d, yyyy HH:mm:ss')}
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     );

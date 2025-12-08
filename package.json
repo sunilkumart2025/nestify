@@ -13,6 +13,7 @@
     "@headlessui/react": "^2.2.9",
     "@hookform/resolvers": "^5.2.2",
     "@supabase/supabase-js": "^2.86.2",
+    "@types/ua-parser-js": "^0.7.39",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.23.25",
@@ -29,6 +30,7 @@
     "recharts": "^3.5.1",
     "resend": "^6.5.2",
     "tailwind-merge": "^3.4.0",
+    "ua-parser-js": "^2.0.6",
     "zod": "^4.1.13"
   },
   "devDependencies": {

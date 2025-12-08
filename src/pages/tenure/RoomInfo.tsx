@@ -14,15 +14,16 @@ export function RoomInfo() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            // Fetch Tenure -> Room
+            // Fetch Tenure -> Room & Admin
             const { data: tenure } = await supabase
                 .from('tenures')
-                .select('room_id, room:rooms(*)')
+                .select('room_id, room:rooms(*), admin:admins(*)')
                 .eq('id', user.id)
                 .single();
 
             if (tenure?.room) {
-                setRoom(tenure.room);
+                // Combine room and admin into one object for easier usage in UI as we use "room.admin"
+                setRoom({ ...tenure.room, admin: tenure.admin });
             }
             setIsLoading(false);
         };
@@ -55,19 +56,52 @@ export function RoomInfo() {
     return (
         <div className="max-w-5xl mx-auto space-y-8">
             <div>
-                <h1 className="text-2xl font-bold text-slate-900">My Room</h1>
-                <p className="text-slate-600">Details and amenities of your living space</p>
+                <h1 className="text-2xl font-bold text-slate-900">My Living Space</h1>
+                <p className="text-slate-600">Details about your room and hostel.</p>
             </div>
 
-            {/* Main Info Card */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                <div className="bg-slate-900 p-6 text-white flex justify-between items-center">
-                    <div>
-                        <p className="text-slate-400 text-sm font-medium uppercase tracking-wider">Room Number</p>
-                        <h2 className="text-4xl font-bold mt-1">{room.room_number}</h2>
+            {/* Hostel & Owner Info Card */}
+            {room?.admin && (
+                <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
+                    <div className="relative z-10 flex flex-col md:flex-row justify-between md:items-center gap-6">
+                        <div>
+                            <div className="flex items-center gap-2 text-slate-400 text-sm font-medium uppercase tracking-wider mb-1">
+                                <Info className="w-4 h-4" /> Hostel Details
+                            </div>
+                            <h2 className="text-3xl font-bold">{room.admin.hostel_name || 'Nestify Hostel'}</h2>
+                            <p className="text-slate-300 mt-1 max-w-lg">{room.admin.hostel_address || 'Address not listed'}</p>
+                        </div>
+
+                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 min-w-[240px] border border-white/10">
+                            <p className="text-xs text-slate-400 uppercase tracking-widest font-semibold mb-3">Property Manager</p>
+                            <div className="flex items-center gap-4">
+                                <div className="h-10 w-10 bg-primary rounded-full flex items-center justify-center text-white font-bold text-lg">
+                                    {room.admin.full_name?.charAt(0) || 'A'}
+                                </div>
+                                <div>
+                                    <p className="font-bold text-white">{room.admin.full_name || 'Admin'}</p>
+                                    <p className="text-sm text-slate-300">{room.admin.phone || 'No Contact Info'}</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div className="h-12 w-12 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                        <TypeIcon className="h-6 w-6 text-white" />
+
+                    {/* Decorative */}
+                    <div className="absolute top-0 right-0 -mt-10 -mr-10 opacity-10">
+                        <BedDouble className="w-64 h-64" />
+                    </div>
+                </div>
+            )}
+
+            {/* Room Info Card */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                <div className="bg-slate-50 p-6 border-b border-slate-100 flex justify-between items-center">
+                    <div>
+                        <p className="text-slate-500 text-sm font-medium uppercase tracking-wider">Room Number</p>
+                        <h2 className="text-4xl font-bold mt-1 text-slate-900">{room.room_number}</h2>
+                    </div>
+                    <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center shadow-sm border border-slate-100">
+                        <TypeIcon className="h-6 w-6 text-slate-700" />
                     </div>
                 </div>
                 <div className="p-6 grid grid-cols-2 md:grid-cols-4 gap-6">

@@ -9,9 +9,8 @@ import { Input } from '../../components/ui/Input';
 import { formatCurrency } from '../../lib/utils';
 import { Plus, Download, Search, Loader2, MoreVertical, Eye, CheckCircle2, Trash2, Pencil, Users } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import type { Invoice, Tenure } from '../../lib/types';
+import { generateInvoicePDF } from '../../lib/pdf';
 import { PaymentDetailsModal } from '../../components/admin/PaymentDetailsModal';
 import { EditInvoiceModal } from '../../components/admin/EditInvoiceModal';
 import { BulkGenerateBillModal } from '../../components/admin/BulkGenerateBillModal';
@@ -19,6 +18,7 @@ import { BulkGenerateBillModal } from '../../components/admin/BulkGenerateBillMo
 export function AdminBilling() {
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [tenures, setTenures] = useState<Tenure[]>([]);
+    const [adminProfile, setAdminProfile] = useState<any>(null); // New State
     const [loading, setLoading] = useState(true);
 
     // Modal States
@@ -69,7 +69,7 @@ export function AdminBilling() {
     const fetchData = async () => {
         try {
             const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
+            if (!user) return; // Add this specific early return for safety
 
             // Updated query to fetch room price
             const [invoicesRes, tenuresRes] = await Promise.all([
@@ -90,6 +90,10 @@ export function AdminBilling() {
 
             setInvoices(invoicesRes.data || []);
             setTenures(tenuresRes.data || []);
+
+            // Fetch Admin Profile for PDF
+            const { data: adminData } = await supabase.from('admins').select('*').eq('id', user.id).single();
+            setAdminProfile(adminData);
         } catch (error) {
             console.error('Error fetching data:', error);
             toast.error('Failed to load billing data');
@@ -134,6 +138,19 @@ export function AdminBilling() {
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
+
+            // Verify Admin Record Exists to prevent FK Error
+            const { data: adminRecord, error: adminError } = await supabase
+                .from('admins')
+                .select('id')
+                .eq('id', user.id)
+                .single();
+
+            if (adminError || !adminRecord) {
+                console.error("Admin record check failed:", adminError);
+                toast.error("Admin profile missing! Please go to Profile and save your details first.");
+                return;
+            }
 
             // 1. Calculate Base Subtotal
             const rent = parseFloat(newBill.rent) || 0;
@@ -249,7 +266,6 @@ export function AdminBilling() {
     };
 
     const handleDownloadPDF = async (invoice: Invoice) => {
-        // ... keep existing implementation ...
         const toastId = toast.loading('Generating Invoice...');
         try {
             let paymentDetails = null;
@@ -264,81 +280,20 @@ export function AdminBilling() {
                 paymentDetails = data;
             }
 
-            const doc = new jsPDF();
+            const { data: { user } } = await supabase.auth.getUser();
 
-            // Header
-            doc.setFontSize(22);
-            doc.setTextColor(37, 99, 235);
-            doc.text('Nestify Hostel', 14, 20);
-
-            doc.setFontSize(10);
-            doc.setTextColor(100);
-            doc.text('Official Rent Invoice', 14, 26);
-
-            // Invoice Meta
-            doc.setFontSize(11);
-            doc.setTextColor(0);
-            doc.text(`Invoice No: INV-${invoice.id.substring(0, 8).toUpperCase()}`, 14, 40);
-            doc.text(`Date: ${new Date(invoice.created_at).toLocaleDateString()}`, 14, 46);
-            doc.text(`Due Date: ${invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : 'N/A'}`, 14, 52);
-
-            // Status Badge
-            const statusX = 160;
-            doc.setFillColor(invoice.status === 'paid' ? 220 : 255, 252, 231);
-            doc.roundedRect(statusX - 2, 38, 30, 8, 1, 1, 'F');
-            doc.setTextColor(invoice.status === 'paid' ? 22 : 200, 163, 74);
-            doc.text(invoice.status.toUpperCase(), statusX + 2, 44);
-
-            // Tenant Details
-            doc.setTextColor(0);
-            doc.text('Bill To:', 14, 65);
-            doc.setFont('helvetica', 'bold');
-            doc.text(invoice.tenure?.full_name || 'Valued Tenant', 14, 71);
-            doc.setFont('helvetica', 'normal');
-            doc.text(invoice.tenure?.email || '', 14, 77);
-            doc.text(`Room: ${invoice.tenure?.room?.room_number || 'N/A'}`, 14, 83);
-
-            // Table
-            autoTable(doc, {
-                startY: 90,
-                head: [['Description', 'Amount']],
-                body: [
-                    ...(invoice.items || []).map((item: any) => [item.description, formatCurrency(item.amount)]),
-                    ['TOTAL', formatCurrency(invoice.total_amount)]
-                ],
-                theme: 'grid',
-                headStyles: { fillColor: [37, 99, 235] }
+            generateInvoicePDF({
+                invoice,
+                paymentDetails,
+                isReceipt: invoice.status === 'paid',
+                hostel: adminProfile ? {
+                    name: adminProfile.hostel_name,
+                    address: adminProfile.hostel_address,
+                    phone: adminProfile.phone,
+                    email: user?.email // Fetch user to get email
+                } : undefined
             });
 
-            // Payment Details
-            let finalY = (doc as any).lastAutoTable.finalY + 15;
-
-            if (invoice.status === 'paid') {
-                doc.setFontSize(12);
-                doc.setFont('helvetica', 'bold');
-                doc.text("Payment Receipt Details", 14, finalY);
-                finalY += 8;
-
-                doc.setFontSize(10);
-                doc.setFont('helvetica', 'normal');
-
-                if (paymentDetails) {
-                    doc.text(`Gateway Ref: ${paymentDetails.gateway_payment_id || 'N/A'}`, 14, finalY);
-                    doc.text(`Payment Mode: ${paymentDetails.gateway_name} (${paymentDetails.payment_mode || 'Online'})`, 14, finalY + 6);
-                    doc.text(`Paid On: ${new Date(paymentDetails.created_at).toLocaleString()}`, 14, finalY + 12);
-                } else {
-                    doc.text("Payment Method: Manual / Offline Settlement", 14, finalY);
-                    doc.text(`Paid On: ${new Date().toLocaleDateString()}`, 14, finalY + 6);
-                }
-                finalY += 25;
-            }
-
-            // Footer
-            doc.setFontSize(9);
-            doc.setTextColor(150);
-            doc.text('This is a computer generated invoice and requires no signature.', 105, 280, { align: 'center' });
-
-            doc.save(`Invoice_${invoice.id.substring(0, 8)}.pdf`);
             toast.success('Invoice downloaded', { id: toastId });
         } catch (err) {
             console.error(err);

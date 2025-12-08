@@ -15,13 +15,15 @@ const paymentSchema = z.object({
     cashfreeSecretKey: z.string().optional(),
 });
 
+type PaymentFormData = z.infer<typeof paymentSchema>;
+
 export function PaymentSettings() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [isVerifying, setIsVerifying] = useState(false);
     const [verificationStatus, setVerificationStatus] = useState<'none' | 'success' | 'failed'>('none');
 
-    const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<PaymentFormData>({
+    const { register, handleSubmit, setValue, watch } = useForm<PaymentFormData>({
         resolver: zodResolver(paymentSchema),
     });
 
@@ -127,7 +129,7 @@ export function PaymentSettings() {
                 name: "Nestify Verification",
                 description: "Test Transaction (₹1)",
                 order_id: data.order_id,
-                handler: function (response: any) {
+                handler: function () {
                     setVerificationStatus('success');
                     toast.success('Payment Verification Successful!');
                     // In a real scenario, we might verify signature here too.
@@ -141,7 +143,7 @@ export function PaymentSettings() {
             };
 
             const rzp = new (window as any).Razorpay(options);
-            rzp.on('payment.failed', function (response: any) {
+            rzp.on('payment.failed', function () {
                 toast.error('Payment failed, but credentials seem correct!');
             });
             rzp.open();

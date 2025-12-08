@@ -7,8 +7,7 @@ import { supabase } from '../../lib/supabase';
 import type { Invoice } from '../../lib/types';
 import { formatCurrency, formatDate } from '../../lib/utils';
 import { toast } from 'react-hot-toast';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import { generateInvoicePDF } from '../../lib/pdf';
 
 export function TenurePayments() {
     const [invoices, setInvoices] = useState<any[]>([]);
@@ -30,7 +29,8 @@ export function TenurePayments() {
                 .select(`
           *,
           tenure:tenures(full_name, email, room:rooms(room_number)),
-          payments(*)
+          payments(*),
+          admin:admins(hostel_name, hostel_address, phone)
         `)
                 .eq('tenure_id', user.id)
                 .order('created_at', { ascending: false });
@@ -151,107 +151,24 @@ export function TenurePayments() {
     };
 
     const handleDownloadInvoice = (invoice: any) => {
-        // Only allow download if paid (re-check logic if user wants pre-view for unpaid?? Request says "disable... before payment")
-        // But traditionally an Invoice CAN be downloaded before payment, a RECEIPT is after.
-        // User said: "disable the invoice download before payment."
         if (invoice.status !== 'paid') {
             toast.error("Please pay the bill to download the receipt.");
             return;
         }
 
-        const doc = new jsPDF();
         const successPayment = invoice.payments?.find((p: any) => p.payment_status === 'SUCCESS') || {};
 
-        // --- BRANDING HEADER ---
-        doc.setFillColor(37, 99, 235); // Primary Blue
-        doc.rect(0, 0, 210, 40, 'F');
-
-        doc.setFontSize(26);
-        doc.setTextColor(255, 255, 255);
-        doc.text('NESTIFY', 14, 25);
-        doc.setFontSize(10);
-        doc.text('Hostel Management Systems', 14, 32);
-
-        doc.setFontSize(30);
-        doc.text('RECEIPT', 150, 28);
-
-        // --- INFO SECTION ---
-        doc.setTextColor(0, 0, 0);
-
-        // Tenant Details
-        doc.setFontSize(10);
-        doc.text('BILLED TO:', 14, 55);
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.text(invoice.tenure?.full_name || 'Valued Tenant', 14, 62);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
-        if (invoice.tenure?.room) doc.text(`Room: ${invoice.tenure.room.room_number}`, 14, 68);
-        doc.text(invoice.tenure?.email || '', 14, 74);
-
-        // Receipt Details
-        const startX = 120;
-        doc.setFontSize(10);
-        doc.text('Receipt ID:', startX, 55);
-        doc.text('Date:', startX, 61);
-        doc.text('Payment Mode:', startX, 67);
-        doc.text('Transaction ID:', startX, 73);
-
-        doc.setFont('helvetica', 'bold');
-        doc.text(`#${invoice.id.substring(0, 8).toUpperCase()}`, startX + 35, 55);
-        doc.text(formatDate(successPayment.created_at || new Date().toISOString()), startX + 35, 61);
-        doc.text((successPayment.payment_mode || 'Online').toUpperCase(), startX + 35, 67);
-        doc.text(successPayment.gateway_payment_id || 'N/A', startX + 35, 73);
-
-        // --- ITEMS TABLE ---
-        const tableData = invoice.items.map((item: any) => [
-            item.description,
-            item.type.toUpperCase(),
-            formatCurrency(item.amount)
-        ]);
-
-        // Add subtotal rows
-        tableData.push(['', '', '']); // Spacer
-        tableData.push(['', 'Subtotal', formatCurrency(invoice.subtotal)]);
-        tableData.push(['', 'Platform Fees', formatCurrency(invoice.total_amount - invoice.subtotal)]);
-        tableData.push(['', 'TOTAL PAID', formatCurrency(invoice.total_amount)]);
-
-        autoTable(doc, {
-            startY: 85,
-            head: [['Description', 'Category', 'Amount']],
-            body: tableData,
-            theme: 'striped',
-            headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold' },
-            columnStyles: {
-                0: { cellWidth: 100 },
-                1: { cellWidth: 40 },
-                2: { cellWidth: 40, halign: 'right' }
-            },
-            // Style the last row (Total)
-            didParseCell: (data) => {
-                if (data.row.index === tableData.length - 1) {
-                    data.cell.styles.fontStyle = 'bold';
-                    data.cell.styles.fillColor = [240, 253, 244];
-                    data.cell.styles.textColor = [22, 101, 52];
-                }
-            }
+        generateInvoicePDF({
+            invoice,
+            paymentDetails: successPayment,
+            isReceipt: true,
+            hostel: invoice.admin ? {
+                name: invoice.admin.hostel_name,
+                address: invoice.admin.hostel_address,
+                phone: invoice.admin.phone,
+                email: 'support@nestify.app' // Default or fetch
+            } : undefined
         });
-
-        // --- FOOTER ---
-        const finalY = (doc as any).lastAutoTable.finalY + 30;
-        doc.setDrawColor(200);
-        doc.line(14, finalY, 196, finalY);
-
-        doc.setFontSize(9);
-        doc.setTextColor(100);
-        doc.text('Thank you for choosing Nestify.', 14, finalY + 10);
-        doc.text('This is a computer generated receipt.', 14, finalY + 16);
-
-        // Brand Mark
-        doc.setTextColor(37, 99, 235);
-        doc.text('Powered by Nestify HMS', 160, finalY + 10);
-
-        doc.save(`receipt-${invoice.month}-${invoice.year}.pdf`);
     };
 
     return (
