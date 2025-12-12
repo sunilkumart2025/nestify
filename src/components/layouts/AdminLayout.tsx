@@ -1,11 +1,7 @@
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { AdminSidebar } from '../admin/Sidebar';
-import {
-    LayoutDashboard, Users, Ticket,
-    MessageSquare, Settings, LogOut, Menu, X, Home,
-    CreditCard, BarChart2, Calendar, ClipboardCheck, FileText, Bell, Shield
-} from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { useDeviceTracker } from '../../hooks/useDeviceTracker';
 import { ChatWidget } from '../../components/chat/ChatWidget';
 
