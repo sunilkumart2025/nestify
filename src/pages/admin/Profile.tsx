@@ -36,7 +36,7 @@ export function AdminProfile() {
     const [is2FAEnabled, setIs2FAEnabled] = useState(false); // New State
     const [pendingData, setPendingData] = useState<ProfileFormData | null>(null);
 
-    const { register, handleSubmit, setValue, formState: { errors } } = useForm<ProfileFormData>({
+    const { register, handleSubmit, setValue, getValues, formState: { errors } } = useForm<ProfileFormData>({
         resolver: zodResolver(profileSchema),
     });
 
@@ -120,7 +120,7 @@ export function AdminProfile() {
 
 
     const handleSendPhoneOtp = async () => {
-        const phone = register('phone').ref?.value || document.querySelector<HTMLInputElement>('input[name="phone"]')?.value;
+        const phone = getValues('phone');
         if (!phone || phone.length < 10) {
             toast.error("Please enter a valid phone number first.");
             return;
@@ -251,7 +251,7 @@ export function AdminProfile() {
         return (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                 <PhoneOTPVerification
-                    phone={register('phone').ref?.value || document.querySelector<HTMLInputElement>('input[name="phone"]')?.value || ''}
+                    phone={getValues('phone') || ''}
                     onVerified={() => {
                         setIsPhoneVerified(true);
                         setShowPhoneOTP(false);
@@ -389,7 +389,7 @@ export function AdminProfile() {
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-8 relative z-10">
-                                <VerifiedField label="Full Name" value={pendingData?.fullName || register('fullName').ref?.value || 'N/A'} />
+                                <VerifiedField label="Full Name" value={pendingData?.fullName || getValues('fullName') || 'N/A'} />
                                 <VerifiedField label="Aadhar Linked" value={`XXXX-XXXX-${nestIdData.aadharNumber.slice(-4)}`} />
                                 <VerifiedField label="PAN Number" value={`${nestIdData.panNumber.slice(0, 2)}XXXXX${nestIdData.panNumber.slice(-2)}`} />
                                 <VerifiedField label="Date of Birth" value={nestIdData.dob} />

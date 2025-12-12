@@ -17,7 +17,7 @@ const paymentSchema = z.object({
     cashfreeSecretKey: z.string().optional(),
     lateFeeDailyPercent: z.string().optional(),
     // Recurring Billing
-    autoBillEnabled: z.boolean().default(false),
+    autoBillEnabled: z.boolean(),
     autoBillDay: z.string().optional(),
     chargeMaintenance: z.string().optional(),
     chargeWater: z.string().optional(),
@@ -30,6 +30,7 @@ export function PaymentSettings() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [isVerifying, setIsVerifying] = useState(false);
+    const [verificationStatus, setVerificationStatus] = useState<'none' | 'success' | 'failed'>('none');
     const [platformDues, setPlatformDues] = useState(0);
     const [showLearnMore, setShowLearnMore] = useState(false);
     const [showConfirmEnable, setShowConfirmEnable] = useState(false);
