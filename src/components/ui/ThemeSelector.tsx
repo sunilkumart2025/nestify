@@ -35,7 +35,7 @@ export function ThemeSelector() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {APP_THEMES.map((t) => {
                             const isActive = theme === t.id;
-                            const isDark = t.type === 'dark' || t.type === 'premium';
+                            const isDark = t.type === 'dark';
 
                             return (
                                 <button

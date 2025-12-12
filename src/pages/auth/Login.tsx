@@ -11,7 +11,6 @@ import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { OTPVerification } from '../../components/auth/OTPVerification';
 import { SecurityManager } from '../../lib/securityManager';
-import { TOTPManager } from '../../lib/totp';
 
 const loginSchema = z.object({
     email: z.string().email('Invalid email address'),
@@ -27,7 +26,6 @@ export function Login() {
     // 2FA State
     const [show2FA, setShow2FA] = useState(false);
     const [loginEmail, setLoginEmail] = useState('');
-    const [loginPassword, setLoginPassword] = useState(''); // Store password temporarily for 2FA re-auth
 
     // Forgot Password State
     const [showForgotModal, setShowForgotModal] = useState(false);
@@ -165,57 +163,26 @@ export function Login() {
     const handle2FACancel = async () => {
         // Already signed out in this flow, but just clear state
         setShow2FA(false);
-        setLoginPassword('');
         setLoginEmail('');
         setIsLoading(false);
         toast('Login cancelled');
     };
 
     // Function passed to OTPVerification to Verify TOTP
-    const verifyTotpCode = async (code: string): Promise<boolean> => {
-        try {
-            // 1. Get encrypted secret from DB (We need a way to get it without signing in? 
-            // Wait, we are signed out. We need to sign in first? 
-            // Phase: 1. Login with Pass (Success) -> 2. Sign Out for Security -> 3. Ask for 2FA -> 4. Login Again?
+    // Alternative Safe Flow:
+    // 1. Login with Pass -> Success (Session Active).
+    // 2. Check 2FA. If Enabled -> Set "Blocked State" in UI (Don't navigate).
+    // 3. Ask for 2FA. 
+    // 4. If Verify -> Navigate.
+    // 5. If Cancel -> Sign Out.
 
-            // Alternative Safe Flow:
-            // 1. Login with Pass -> Success (Session Active).
-            // 2. Check 2FA. If Enabled -> Set "Blocked State" in UI (Don't navigate).
-            // 3. Ask for 2FA. 
-            // 4. If Verify -> Navigate.
-            // 5. If Cancel -> Sign Out.
+    // This is safer and easier because we have the session to call RPC.
+    // But we need to ensure the user CANNOT navigate away.
+    // "proceedToDashboard" handles the navigation. If we pause there, we are fine.
+    // SO: We should NOT sign out in the first step.
 
-            // This is safer and easier because we have the session to call RPC.
-            // But we need to ensure the user CANNOT navigate away.
-            // "proceedToDashboard" handles the navigation. If we pause there, we are fine.
-            // SO: We should NOT sign out in the first step.
-
-            // Let's adjust the logic slightly. 
-            // We assume we are SIGNED IN here (if we reverted the sign-out logic).
-
-            // But wait, the previous code had `await supabase.auth.signOut();` at line 142.
-            // If I change that, I need to assume session exists.
-
-            // Let's assume we change line 142 to NOT sign out.
-
-            // Retrieve encrypted secret
-            const { data: encryptedSecret, error } = await supabase.rpc('get_decrypted_totp_secret', {
-                p_encryption_key: import.meta.env.VITE_VAULT_MASTER_KEY
-            });
-
-            if (error || !encryptedSecret) throw new Error("Failed to retrieve 2FA secret");
-
-            return await TOTPManager.verifyTOTP(code, encryptedSecret);
-        } catch (e) {
-            console.error(e);
-            return false;
-        }
-    };
-
-    // ...
-
-    // In Render:
-    // <OTPVerification customVerifier={verifyTotpCode} ... />
+    // Let's adjust the logic slightly. 
+    // We assume we are SIGNED IN here (if we reverted the sign-out logic).
 
     // --- Forgot Password Handlers ---
 
@@ -437,26 +404,17 @@ export function Login() {
                 <div className="fixed inset-0 bg-slate-50 z-[60] flex items-center justify-center p-4">
                     <OTPVerification
                         email={loginEmail}
-                        onVerified={() => proceedToDashboard(
-                            // We need role here. 
-                            // Since we didn't sign out, we can get it from storage or state?
-                            // Or better, just fetch user again or pass it from state?
-                            // We'll simplisticly navigate to /admin or /tenure based on logic used in proceedToDashboard
-                            // But proceedToDashboard needs args.
-                            // Let's use a simple heuristic or store role in state.
-                            // Quick fix: user is logged in, navigate logic will handle it?
-                            // proceedToDashboard takes (role, userId).
-                            // We can fetch current user.
-                            supabase.auth.getUser().then(({ data }) => {
-                                const role = data.user?.user_metadata?.role || 'admin'; // fallback
-                                const uid = data.user?.id || '';
-                                proceedToDashboard(role, uid);
-                            })
-                        )}
+                        onVerified={async () => {
+                            const { data: userData } = await supabase.auth.getUser();
+                            const role = userData.user?.user_metadata?.role;
+                            const userId = userData.user?.id;
+                            if (role && userId) {
+                                proceedToDashboard(role, userId);
+                            }
+                        }}
                         onCancel={handle2FACancel}
                         actionLabel="Verify & Enter Portal"
-                        shouldDelete={false} // meaningless for TOTP
-                        customVerifier={verifyTotpCode}
+                        shouldDelete={false}
                     />
                 </div>
             )}

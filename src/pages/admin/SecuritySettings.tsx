@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, Key, Lock, AlertTriangle, RefreshCw, History, CheckCircle2 } from 'lucide-react';
+import { Shield, Key, Lock, AlertTriangle, History, CheckCircle2 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { KeyVaultManager, SecurityManager } from '../../lib/securityManager';
+import { KeyVaultManager } from '../../lib/securityManager';
 import { Setup2FA } from '../../components/auth/Setup2FA'; // New Import
 import { toast } from 'react-hot-toast';
 
@@ -85,7 +85,12 @@ export function SecuritySettings() {
                             </h2>
                             <p className="text-slate-600 text-sm mt-1">Protect your admin account with Time-Based OTP (Authenticator App)</p>
                         </div>
-                        <Button onClick={() => document.getElementById('setup-2fa-modal')?.showModal()}>
+                        <Button onClick={() => {
+                            const modal = document.getElementById('2fa_modal');
+                            if (modal && 'showModal' in modal) {
+                                (modal as HTMLDialogElement).showModal();
+                            }
+                        }}>
                             Configure 2FA
                         </Button>
                     </div>

@@ -30,14 +30,19 @@ export function PaymentSettings() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [isVerifying, setIsVerifying] = useState(false);
-    const [verificationStatus, setVerificationStatus] = useState<'none' | 'success' | 'failed'>('none');
     const [platformDues, setPlatformDues] = useState(0);
     const [showLearnMore, setShowLearnMore] = useState(false);
     const [showConfirmEnable, setShowConfirmEnable] = useState(false);
 
     const { register, handleSubmit, setValue, watch } = useForm<PaymentFormData>({
         resolver: zodResolver(paymentSchema),
-        defaultValues: { autoBillEnabled: false }
+        defaultValues: {
+            autoBillEnabled: false,
+            autoBillDay: '1',
+            chargeMaintenance: '0',
+            chargeWater: '0',
+            chargeElectricity: '0'
+        }
     });
 
     const formValues = watch();
@@ -119,7 +124,7 @@ export function PaymentSettings() {
             currency: "INR",
             name: "Nestify Platform",
             description: "Platform Service Fees",
-            handler: async function (response: any) {
+            handler: async function () {
                 const toastId = toast.loading("Verifying Payment...");
                 try {
                     const { error } = await supabase.rpc('clear_platform_dues', { p_amount: platformDues });
