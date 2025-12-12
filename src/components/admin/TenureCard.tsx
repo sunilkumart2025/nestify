@@ -23,6 +23,15 @@ export function TenureCard({ tenure, onEdit, onViewDetails }: TenureCardProps) {
                             }`}>
                             {tenure.status.charAt(0).toUpperCase() + tenure.status.slice(1)}
                         </span>
+                        {/* Trust Score Badge */}
+                        {tenure.trust_score !== undefined && (
+                            <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${tenure.trust_score >= 70 ? 'bg-green-50 text-green-700 border-green-200' :
+                                    tenure.trust_score >= 40 ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                                        'bg-red-50 text-red-700 border-red-200'
+                                }`}>
+                                {tenure.trust_score >= 70 ? '🛡️' : tenure.trust_score >= 40 ? '⚠️' : '🚫'} Score: {tenure.trust_score}
+                            </span>
+                        )}
                     </div>
                 </div>
 

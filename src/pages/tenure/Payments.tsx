@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Download, CreditCard, Clock, CheckCircle2 } from 'lucide-react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { Download, CreditCard, Clock, CheckCircle2, Shield } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { PaymentModal } from '../../components/tenure/PaymentModal';
 import { supabase } from '../../lib/supabase';
@@ -14,6 +14,8 @@ export function TenurePayments() {
     const [isLoading, setIsLoading] = useState(true);
     const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
     const [expandedInvoice, setExpandedInvoice] = useState<string | null>(null);
+    const [nestIdStatus, setNestIdStatus] = useState<'verified' | 'unverified' | 'pending'>('unverified');
+    const navigate = useNavigate();
 
     const [searchParams, setSearchParams] = useSearchParams(); // Needs import from react-router-dom
 
@@ -23,6 +25,14 @@ export function TenurePayments() {
             setIsLoading(true);
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
+
+            // Fetch Verification Status
+            const { data: profile } = await supabase
+                .from('tenures')
+                .select('nestid_status')
+                .eq('email', user.email || '')
+                .single();
+            setNestIdStatus(profile?.nestid_status || 'unverified');
 
             const { data, error } = await supabase
                 .from('invoices')
@@ -178,6 +188,23 @@ export function TenurePayments() {
                 <p className="text-slate-600">View detailed breakdown and download receipts</p>
             </div>
 
+            {/* NestID Alert Banner */}
+            {nestIdStatus !== 'verified' && (
+                <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-indigo-100 rounded-lg">
+                            <Shield className="h-5 w-5 text-indigo-600" />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-indigo-900">Verify Identity to Enable Payments</h3>
+                            <p className="text-sm text-indigo-700">
+                                Secure payments require Aadhar verification.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Invoices List */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
                 {isLoading ? (
@@ -220,8 +247,16 @@ export function TenurePayments() {
                                             {invoice.status === 'pending' && (
                                                 <Button
                                                     className="flex-1 sm:flex-none bg-secondary hover:bg-secondary-hover"
-                                                    onClick={() => setSelectedInvoice(invoice)}
+                                                    onClick={() => {
+                                                        if (nestIdStatus !== 'verified') {
+                                                            toast.error("Please verify your identity first!");
+                                                            navigate('/tenure/profile');
+                                                            return;
+                                                        }
+                                                        setSelectedInvoice(invoice);
+                                                    }}
                                                 >
+                                                    {nestIdStatus !== 'verified' && <Shield className="h-3 w-3 mr-2" />}
                                                     <CreditCard className="h-4 w-4 mr-2" /> Pay Now
                                                 </Button>
                                             )}

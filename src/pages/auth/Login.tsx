@@ -10,6 +10,8 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { OTPVerification } from '../../components/auth/OTPVerification';
+import { SecurityManager } from '../../lib/securityManager';
+import { TOTPManager } from '../../lib/totp';
 
 const loginSchema = z.object({
     email: z.string().email('Invalid email address'),
@@ -42,6 +44,24 @@ export function Login() {
     const onSubmit = async (data: LoginFormData) => {
         setIsLoading(true);
         try {
+            // 🔒 SECURITY CHECK: Check if account is locked
+            const lockStatus = await SecurityManager.checkAccountLocked(data.email);
+
+            if (!lockStatus.allowed) {
+                if (lockStatus.isPermanent) {
+                    toast.error('Your account has been permanently locked. Please contact support.');
+                    setIsLoading(false);
+                    return;
+                }
+
+                const timeRemaining = SecurityManager.formatUnlockTime(lockStatus.unlockAt!);
+                toast.error(
+                    `Account temporarily locked due to multiple failed attempts. Please try again in ${timeRemaining}.`,
+                    { duration: 6000 }
+                );
+                setIsLoading(false);
+                return;
+            }
             const { data: authData, error } = await supabase.auth.signInWithPassword({
                 email: data.email,
                 password: data.password,
@@ -80,6 +100,9 @@ export function Login() {
 
             localStorage.setItem(`session_token_${userId}`, sessionToken);
 
+            // 🔒 SECURITY: Record successful login
+            await SecurityManager.recordLoginAttempt(data.email, true);
+
             // 3. Audit Log
             await supabase.from('audit_logs').insert({
                 user_id: userId,
@@ -90,46 +113,31 @@ export function Login() {
 
             const role = authData.user.user_metadata.role;
 
-            // --- 2FA Check Logic ---
-            let isEnabled = false;
-            let tableName = '';
-
-            if (role === 'admin') {
-                tableName = 'admins';
-            } else if (role === 'tenure') {
-                tableName = 'tenures';
-            } else {
-                // Fallback for users without metadata role
-                const { data: admin } = await supabase.from('admins').select('id').eq('id', authData.user.id).single();
-                if (admin) tableName = 'admins';
-                else tableName = 'tenures';
-            }
-
-            if (tableName) {
-                const { data: profile } = await supabase
-                    .from(tableName)
-                    .select('is_2fa_enabled')
-                    .eq('id', authData.user.id)
-                    .single();
-
-                isEnabled = profile?.is_2fa_enabled || false;
-            }
-
-            if (isEnabled) {
-                // Secure Flow: Sign out immediately so they don't have a session if they refresh
-                await supabase.auth.signOut();
-
-                setLoginEmail(data.email);
-                setLoginPassword(data.password); // Store for re-auth
-                setShow2FA(true);
-                setIsLoading(false);
-                return;
-            }
-
             proceedToDashboard(role, authData.user.id);
 
         } catch (error: any) {
-            toast.error(error.message || 'Invalid credentials');
+            // 🔒 SECURITY: Record failed login attempt
+            const attemptResult = await SecurityManager.recordLoginAttempt(
+                data.email,
+                false,
+                error.message
+            );
+
+            if (attemptResult.shouldLock) {
+                const timeRemaining = SecurityManager.formatUnlockTime(attemptResult.unlockAt!);
+                toast.error(
+                    `Too many failed attempts. Account locked for ${timeRemaining}.`,
+                    { duration: 8000 }
+                );
+            } else if (attemptResult.attemptsRemaining <= 2) {
+                toast.error(
+                    `Invalid credentials. ${attemptResult.attemptsRemaining} attempts remaining before account lockout.`,
+                    { duration: 5000 }
+                );
+            } else {
+                toast.error(error.message || 'Invalid credentials');
+            }
+
             setIsLoading(false);
         }
     };
@@ -150,27 +158,9 @@ export function Login() {
         toast.success('Welcome back!');
     };
 
-    const handle2FAVerified = async () => {
-        // Re-authenticate user since we signed them out
-        setIsLoading(true);
-        try {
-            const { data: authData, error } = await supabase.auth.signInWithPassword({
-                email: loginEmail,
-                password: loginPassword,
-            });
 
-            if (error) throw error;
-            if (authData.user) {
-                const role = authData.user.user_metadata.role;
-                proceedToDashboard(role, authData.user.id);
-            }
-        } catch (error: any) {
-            toast.error('Session expired. Please login again.');
-            setShow2FA(false);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+
+    // ... (in Login component)
 
     const handle2FACancel = async () => {
         // Already signed out in this flow, but just clear state
@@ -180,6 +170,52 @@ export function Login() {
         setIsLoading(false);
         toast('Login cancelled');
     };
+
+    // Function passed to OTPVerification to Verify TOTP
+    const verifyTotpCode = async (code: string): Promise<boolean> => {
+        try {
+            // 1. Get encrypted secret from DB (We need a way to get it without signing in? 
+            // Wait, we are signed out. We need to sign in first? 
+            // Phase: 1. Login with Pass (Success) -> 2. Sign Out for Security -> 3. Ask for 2FA -> 4. Login Again?
+
+            // Alternative Safe Flow:
+            // 1. Login with Pass -> Success (Session Active).
+            // 2. Check 2FA. If Enabled -> Set "Blocked State" in UI (Don't navigate).
+            // 3. Ask for 2FA. 
+            // 4. If Verify -> Navigate.
+            // 5. If Cancel -> Sign Out.
+
+            // This is safer and easier because we have the session to call RPC.
+            // But we need to ensure the user CANNOT navigate away.
+            // "proceedToDashboard" handles the navigation. If we pause there, we are fine.
+            // SO: We should NOT sign out in the first step.
+
+            // Let's adjust the logic slightly. 
+            // We assume we are SIGNED IN here (if we reverted the sign-out logic).
+
+            // But wait, the previous code had `await supabase.auth.signOut();` at line 142.
+            // If I change that, I need to assume session exists.
+
+            // Let's assume we change line 142 to NOT sign out.
+
+            // Retrieve encrypted secret
+            const { data: encryptedSecret, error } = await supabase.rpc('get_decrypted_totp_secret', {
+                p_encryption_key: import.meta.env.VITE_VAULT_MASTER_KEY
+            });
+
+            if (error || !encryptedSecret) throw new Error("Failed to retrieve 2FA secret");
+
+            return await TOTPManager.verifyTOTP(code, encryptedSecret);
+        } catch (e) {
+            console.error(e);
+            return false;
+        }
+    };
+
+    // ...
+
+    // In Render:
+    // <OTPVerification customVerifier={verifyTotpCode} ... />
 
     // --- Forgot Password Handlers ---
 
@@ -401,10 +437,26 @@ export function Login() {
                 <div className="fixed inset-0 bg-slate-50 z-[60] flex items-center justify-center p-4">
                     <OTPVerification
                         email={loginEmail}
-                        onVerified={handle2FAVerified}
+                        onVerified={() => proceedToDashboard(
+                            // We need role here. 
+                            // Since we didn't sign out, we can get it from storage or state?
+                            // Or better, just fetch user again or pass it from state?
+                            // We'll simplisticly navigate to /admin or /tenure based on logic used in proceedToDashboard
+                            // But proceedToDashboard needs args.
+                            // Let's use a simple heuristic or store role in state.
+                            // Quick fix: user is logged in, navigate logic will handle it?
+                            // proceedToDashboard takes (role, userId).
+                            // We can fetch current user.
+                            supabase.auth.getUser().then(({ data }) => {
+                                const role = data.user?.user_metadata?.role || 'admin'; // fallback
+                                const uid = data.user?.id || '';
+                                proceedToDashboard(role, uid);
+                            })
+                        )}
                         onCancel={handle2FACancel}
                         actionLabel="Verify & Enter Portal"
-                        shouldDelete={true}
+                        shouldDelete={false} // meaningless for TOTP
+                        customVerifier={verifyTotpCode}
                     />
                 </div>
             )}

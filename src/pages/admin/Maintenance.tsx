@@ -128,6 +128,20 @@ export function AdminMaintenance() {
                                             <span className="text-slate-300">|</span>
                                             <span className="text-slate-500">Room {complaint.tenure?.room?.room_number || 'N/A'}</span>
                                         </div>
+
+                                        {/* Evidence Images */}
+                                        {complaint.images && complaint.images.length > 0 && (
+                                            <div className="flex gap-2 mt-4 overflow-x-auto pb-1">
+                                                {complaint.images.map((img: string, idx: number) => (
+                                                    <a key={idx} href={img} target="_blank" rel="noopener noreferrer" className="relative group flex-shrink-0">
+                                                        <img src={img} alt="Evidence" className="h-16 w-16 object-cover rounded-lg border border-slate-200" />
+                                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 rounded-lg flex items-center justify-center transition-opacity">
+                                                            <span className="text-white text-[10px] font-bold">VIEW</span>
+                                                        </div>
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="flex md:flex-col justify-end gap-2 min-w-[140px]">

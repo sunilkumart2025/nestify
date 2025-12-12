@@ -3,6 +3,7 @@ import { formatCurrency, formatDate } from '../../lib/utils';
 import { CheckCircle2, Megaphone, MapPin, Phone, Mail, Building2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Link } from 'react-router-dom';
+import { DashboardBanner } from '../../components/tenure/DashboardBanner';
 
 export function TenureHome() {
     const [profile, setProfile] = useState<any>(null);
@@ -126,55 +127,8 @@ export function TenureHome() {
                 </div>
             </div>
 
-            {/* Hostel Details Card */}
-            {adminDetails && (
-                <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-4 opacity-10">
-                        <Building2 className="w-48 h-48" />
-                    </div>
-                    <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                        <div className="md:col-span-2 space-y-2">
-                            <div className="flex items-center space-x-2 text-slate-400 text-sm font-medium uppercase tracking-wider">
-                                <Building2 className="w-4 h-4" />
-                                <span>Your Residence</span>
-                            </div>
-                            <h2 className="text-3xl font-bold text-white">{adminDetails.hostel_name}</h2>
-                            <div className="flex items-start text-slate-300 space-x-2">
-                                <MapPin className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                                <p>{adminDetails.hostel_address || 'Address not listed'}</p>
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row gap-3 md:justify-end">
-                            <a
-                                href={`tel:${adminDetails.phone}`}
-                                className="flex items-center justify-center space-x-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/10 px-4 py-3 rounded-xl transition-all group"
-                            >
-                                <div className="bg-green-500/20 p-1.5 rounded-lg group-hover:bg-green-500/30 transition-colors">
-                                    <Phone className="w-5 h-5 text-green-400" />
-                                </div>
-                                <div className="text-left">
-                                    <p className="text-xs text-slate-400">Owner</p>
-                                    <p className="text-sm font-bold text-white leading-tight">Call Now</p>
-                                </div>
-                            </a>
-
-                            <a
-                                href={`mailto:${adminDetails.email || ''}`}
-                                className={`flex items-center justify-center space-x-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/10 px-4 py-3 rounded-xl transition-all group ${!adminDetails.email ? 'opacity-50 pointer-events-none' : ''}`}
-                            >
-                                <div className="bg-blue-500/20 p-1.5 rounded-lg group-hover:bg-blue-500/30 transition-colors">
-                                    <Mail className="w-5 h-5 text-blue-400" />
-                                </div>
-                                <div className="text-left">
-                                    <p className="text-xs text-slate-400">Support</p>
-                                    <p className="text-sm font-bold text-white leading-tight">Email</p>
-                                </div>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Hostel Details Card (Replaced with Carousel) */}
+            <DashboardBanner adminDetails={adminDetails} />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Left Column (Main Stats) */}

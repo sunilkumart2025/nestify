@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Users, BedDouble, Wallet, Plus, Trash2, Megaphone } from 'lucide-react';
+import { Users, BedDouble, Wallet, Plus, Trash2, Megaphone, AlertTriangle as HelperAlertTriangle } from 'lucide-react';
 import { formatCurrency, formatDate } from '../../lib/utils';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
@@ -8,11 +8,12 @@ import { AddNoticeModal } from '../../components/admin/AddNoticeModal';
 
 export function AdminHome() {
     const [stats, setStats] = useState({
-        totalTenures: 0,
+        totalBeds: 0,
+        occupiedBeds: 0,
         occupancyRate: 0,
-        monthlyCollection: 0,
-        occupiedRooms: 0,
-        totalRooms: 0
+        revenueMonth: 0,
+        pendingDues: 0,
+        openIssues: 0
     });
     const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
     const [pendingInvoices, setPendingInvoices] = useState<any[]>([]);
@@ -25,41 +26,22 @@ export function AdminHome() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            // 1. Fetch Stats
-            const { count: tenureCount } = await supabase
-                .from('tenures')
-                .select('*', { count: 'exact', head: true })
-                .eq('admin_id', user.id)
-                .eq('status', 'active');
+            // 1. Fetch Pulse Stats (RPC)
+            const { data: pulseData, error: rpcError } = await supabase
+                .rpc('get_admin_dashboard_stats', { p_admin_id: user.id });
 
-            const { data: rooms } = await supabase
-                .from('rooms')
-                .select('capacity')
-                .eq('admin_id', user.id);
+            if (rpcError) throw rpcError;
 
-            const totalCapacity = rooms?.reduce((sum, r) => sum + r.capacity, 0) || 0;
-            const occupancyRate = totalCapacity > 0 ? Math.round((tenureCount || 0) / totalCapacity * 100) : 0;
-
-            const currentMonth = new Date().toLocaleString('default', { month: 'long' });
-            const currentYear = new Date().getFullYear();
-
-            const { data: monthlyInvoices } = await supabase
-                .from('invoices')
-                .select('total_amount')
-                .eq('admin_id', user.id)
-                .eq('status', 'paid')
-                .eq('month', currentMonth)
-                .eq('year', currentYear);
-
-            const monthlyCollection = monthlyInvoices?.reduce((sum, inv) => sum + Number(inv.total_amount), 0) || 0;
-
-            setStats({
-                totalTenures: tenureCount || 0,
-                occupancyRate,
-                monthlyCollection,
-                occupiedRooms: tenureCount || 0,
-                totalRooms: totalCapacity
-            });
+            if (pulseData) {
+                setStats({
+                    totalBeds: pulseData.total_beds,
+                    occupiedBeds: pulseData.occupied_beds,
+                    occupancyRate: pulseData.occupancy_rate,
+                    revenueMonth: pulseData.revenue_month,
+                    pendingDues: pulseData.pending_dues,
+                    openIssues: pulseData.open_issues
+                });
+            }
 
             // 2. Recent Transactions
             const { data: transactions } = await supabase
@@ -131,9 +113,33 @@ export function AdminHome() {
     }
 
     const statCards = [
-        { name: 'Total Tenants', value: stats.totalTenures.toString(), change: 'Active', changeType: 'neutral', icon: Users, desc: 'Currently living in hostel' },
-        { name: 'Occupancy Rate', value: `${stats.occupancyRate}%`, change: `${stats.occupiedRooms}/${stats.totalRooms}`, changeType: 'increase', icon: BedDouble, desc: 'Spots occupied' },
-        { name: 'Monthly Collection', value: formatCurrency(stats.monthlyCollection), change: 'This Month', changeType: 'increase', icon: Wallet, desc: 'Revenue collected' },
+        {
+            name: 'Occupancy Pulse',
+            value: `${stats.occupancyRate}%`,
+            change: `${stats.occupiedBeds}/${stats.totalBeds} Beds`,
+            changeType: stats.occupancyRate > 90 ? 'increase' : 'neutral',
+            icon: Users,
+            desc: 'Live Occupancy Rate',
+            color: 'text-blue-600 bg-blue-100'
+        },
+        {
+            name: 'Monthly Revenue',
+            value: formatCurrency(stats.revenueMonth),
+            change: 'This Month',
+            changeType: 'increase',
+            icon: Wallet,
+            desc: 'Total Collection',
+            color: 'text-emerald-600 bg-emerald-100'
+        },
+        {
+            name: 'Risk Exposure',
+            value: formatCurrency(stats.pendingDues),
+            change: 'Pending Dues',
+            changeType: stats.pendingDues > 0 ? 'decrease' : 'increase',
+            icon: HelperAlertTriangle,
+            desc: 'Action Required',
+            color: 'text-rose-600 bg-rose-100' // Custom helper needed for icon
+        },
     ];
 
     const getNoticeBadgeColor = (category: string) => {

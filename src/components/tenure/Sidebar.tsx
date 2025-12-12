@@ -16,7 +16,8 @@ import {
     ThumbsUp,
     Users,
     Bell,
-    Calendar // Added
+    Calendar,
+    Megaphone // Added
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { supabase } from '../../lib/supabase';
@@ -30,6 +31,7 @@ const navigation = [
     { name: 'Feedback', href: '/tenure/feedback', icon: ThumbsUp },
     { name: 'Payments', href: '/tenure/payments', icon: Receipt },
     { name: 'Complaints', href: '/tenure/complaints', icon: ClipboardList },
+    { name: 'Community', href: '/tenure/community', icon: Megaphone },
     { name: 'Messages', href: '/tenure/messages', icon: MessageSquare },
     { name: 'Notifications', href: '/tenure/notifications', icon: Bell },
     { name: 'Calendar', href: '/tenure/calendar', icon: Calendar },

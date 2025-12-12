@@ -19,7 +19,8 @@ import {
     FileClock,
     ThumbsUp,
     Bell,
-    Calendar // Added
+    Calendar,
+    Megaphone
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { supabase } from '../../lib/supabase';
@@ -32,12 +33,13 @@ const navigation = [
     { name: 'Tenures', href: '/admin/tenures', icon: Users },
     { name: 'Billing', href: '/admin/billing', icon: Receipt },
     { name: 'Maintenance', href: '/admin/maintenance', icon: Wrench },
+    { name: 'Community', href: '/admin/community', icon: Megaphone },
     { name: 'Messages', href: '/admin/messages', icon: MessageSquare },
     { name: 'Analysis', href: '/admin/analysis', icon: BarChart3 },
     { name: 'Feedback', href: '/admin/feedback', icon: ThumbsUp },
     { name: 'Audit Logs', href: '/admin/audit-logs', icon: FileClock },
     { name: 'Payments', href: '/admin/payments', icon: CreditCard },
-    { name: 'Expenses', href: '/admin/expenses', icon: Receipt }, // Added
+    { name: 'EXPENSES', href: '/admin/expenses', icon: Receipt },
     { name: 'Notifications', href: '/admin/notifications', icon: Bell },
     { name: 'Calendar', href: '/admin/calendar', icon: Calendar },
     { name: 'Profile', href: '/admin/profile', icon: Settings },

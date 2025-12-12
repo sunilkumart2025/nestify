@@ -4,6 +4,7 @@ import { TenureSidebar } from '../tenure/Sidebar';
 import { Menu } from 'lucide-react';
 import { useDeviceTracker } from '../../hooks/useDeviceTracker'; // Import Hook
 import { WelcomeBanner } from '../tenure/WelcomeBanner';
+import { ChatWidget } from '../../components/chat/ChatWidget';
 
 export function TenureLayout() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -48,6 +49,9 @@ export function TenureLayout() {
                     </main>
                 </div>
             </div>
+
+            {/* NestBot Integration */}
+            <ChatWidget userType="tenure" />
         </div>
     );
 }

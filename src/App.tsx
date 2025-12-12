@@ -8,8 +8,12 @@ import { SignupTenure } from './pages/auth/SignupTenure';
 import { AdminDashboard } from './pages/admin/Dashboard';
 import { TenureDashboard } from './pages/tenure/Dashboard';
 import { TopicPage } from './pages/TopicPage';
+import { MonitorLayout } from './components/monitor/MonitorLayout';
 import { MonitorLogin } from './pages/monitor/Login';
 import { MonitorDashboard } from './pages/monitor/Dashboard';
+import { MonitorRegistry } from './pages/monitor/Registry';
+import { MonitorLedger } from './pages/monitor/Ledger';
+import { MonitorPayments } from './pages/monitor/Payments';
 import { supabase } from './lib/supabase';
 
 // Session Manager Component
@@ -108,8 +112,14 @@ function App() {
         <Route path="/signup-tenure" element={<SignupTenure />} />
         <Route path="/admin/*" element={<AdminDashboard />} />
         <Route path="/tenure/*" element={<TenureDashboard />} />
-        <Route path="/monitor/login" element={<MonitorLogin />} />
-        <Route path="/monitor/*" element={<MonitorDashboard />} />
+        <Route path="/monitor" element={<MonitorLayout />}>
+          <Route path="login" element={<MonitorLogin />} />
+          <Route path="registry" element={<MonitorRegistry />} />
+          <Route path="ledger" element={<MonitorLedger />} />
+          <Route path="payments" element={<MonitorPayments />} />
+          <Route index element={<MonitorDashboard />} />
+          <Route path="*" element={<MonitorDashboard />} />
+        </Route>
         <Route path="/topic/:slug" element={<TopicPage />} />
       </Routes>
     </Router>

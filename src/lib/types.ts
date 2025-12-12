@@ -30,6 +30,7 @@ export interface Tenure {
     created_at: string;
     room?: Room;
     unread_count?: number;
+    trust_score?: number;
 }
 
 export interface Invoice {

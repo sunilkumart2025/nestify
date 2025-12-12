@@ -18,10 +18,16 @@ export function MonitorLogin() {
 
         if (username === validUser && password === validPass) {
             localStorage.setItem('monitor_auth', 'true');
-            toast.success('Access Granted');
-            navigate('/monitor/dashboard');
+            toast.success('ACCESS GRANTED', {
+                icon: '✅',
+                style: { background: '#000', color: '#10b981', border: '1px solid #10b981', fontFamily: 'monospace' }
+            });
+            navigate('/monitor');
         } else {
-            toast.error('Invalid Credentials');
+            toast.error('INVALID CREDENTIALS', {
+                icon: '❌',
+                style: { background: '#000', color: '#ef4444', border: '1px solid #ef4444', fontFamily: 'monospace' }
+            });
         }
     };
 

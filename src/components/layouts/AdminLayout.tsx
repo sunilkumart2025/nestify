@@ -1,8 +1,13 @@
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { AdminSidebar } from '../admin/Sidebar';
-import { Menu } from 'lucide-react';
+import {
+    LayoutDashboard, Users, Ticket,
+    MessageSquare, Settings, LogOut, Menu, X, Home,
+    CreditCard, BarChart2, Calendar, ClipboardCheck, FileText, Bell, Shield
+} from 'lucide-react';
 import { useDeviceTracker } from '../../hooks/useDeviceTracker';
+import { ChatWidget } from '../../components/chat/ChatWidget';
 
 export function AdminLayout() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -45,6 +50,8 @@ export function AdminLayout() {
                     </main>
                 </div>
             </div>
+            {/* NestBot Integration */}
+            <ChatWidget userType="admin" />
         </div>
     );
 }
