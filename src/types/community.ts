@@ -2,7 +2,7 @@ export type PostType = 'event' | 'announcement' | 'poll';
 
 export interface PollOption {
     id: string;
-    text: string;
+    option_text: string;
     vote_count: number;
 }
 
