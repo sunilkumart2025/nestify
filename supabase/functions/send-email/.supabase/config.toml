@@ -1,0 +1,4 @@
+# Supabase Edge Function Configuration
+# This tells Supabase to allow anonymous access to the send-email function
+
+verify_jwt = false

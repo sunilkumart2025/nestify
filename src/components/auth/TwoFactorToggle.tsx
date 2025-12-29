@@ -35,7 +35,7 @@ export function TwoFactorToggle({ isEnabled, email, userType, onUpdate }: TwoFac
 
             const { error } = await supabase
                 .from(table)
-                .update({ is_2fa_enabled: pendingState })
+                .update({ two_factor_enabled: pendingState })
                 .eq('id', user.id);
 
             if (error) throw error;
@@ -69,7 +69,12 @@ export function TwoFactorToggle({ isEnabled, email, userType, onUpdate }: TwoFac
 
                 <div className="flex items-center justify-between border-t border-slate-100 pt-4">
                     <button
-                        onClick={() => setShowLearnMore(true)}
+                        type="button"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setShowLearnMore(true);
+                        }}
                         className="flex items-center text-sm text-primary hover:text-primary-hover font-medium transition-colors"
                     >
                         <Info className="h-4 w-4 mr-1.5" />

@@ -2,6 +2,15 @@ import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { Toaster, toast } from 'react-hot-toast';
 import { Landing } from './pages/Landing';
+import { Terms } from './pages/legal/Terms';
+import { Privacy } from './pages/legal/Privacy';
+import { Features } from './pages/marketing/Features';
+import { About } from './pages/marketing/About';
+import { Contact } from './pages/marketing/Contact';
+import { Updates } from './pages/marketing/Updates';
+import { Blog } from './pages/marketing/Blog';
+import { Careers } from './pages/marketing/Careers';
+import { Integrations } from './pages/marketing/Integrations';
 import { Login } from './pages/auth/Login';
 import { SignupAdmin } from './pages/auth/SignupAdmin';
 import { SignupTenure } from './pages/auth/SignupTenure';
@@ -14,7 +23,9 @@ import { MonitorDashboard } from './pages/monitor/Dashboard';
 import { MonitorRegistry } from './pages/monitor/Registry';
 import { MonitorLedger } from './pages/monitor/Ledger';
 import { MonitorPayments } from './pages/monitor/Payments';
+import { MonitorSettlements } from './pages/monitor/Settlements';
 import { supabase } from './lib/supabase';
+
 
 // Session Manager Component
 function SessionManager() {
@@ -33,7 +44,7 @@ function SessionManager() {
         .from('user_sessions')
         .select('current_session_token')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (dbSession && dbSession.current_session_token !== localToken) {
         toast.error("Session expired (Logged in elsewhere).", { duration: 4000 });
@@ -107,6 +118,15 @@ function App() {
       />
       <Routes>
         <Route path="/" element={<Landing />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/features" element={<Features />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/updates" element={<Updates />} />
+        <Route path="/blog" element={<Blog />} />
+        <Route path="/careers" element={<Careers />} />
+        <Route path="/integrations" element={<Integrations />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup-admin" element={<SignupAdmin />} />
         <Route path="/signup-tenure" element={<SignupTenure />} />
@@ -117,6 +137,7 @@ function App() {
           <Route path="registry" element={<MonitorRegistry />} />
           <Route path="ledger" element={<MonitorLedger />} />
           <Route path="payments" element={<MonitorPayments />} />
+          <Route path="settlements" element={<MonitorSettlements />} />
           <Route index element={<MonitorDashboard />} />
           <Route path="*" element={<MonitorDashboard />} />
         </Route>

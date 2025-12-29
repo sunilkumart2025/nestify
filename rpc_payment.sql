@@ -38,56 +38,85 @@ BEGIN
 
     -- 2. SECURITY CHECK: Verify Gateway Signature (For Razorpay)
     IF p_gateway_name = 'razorpay' THEN
-        SELECT razorpay_key_secret INTO v_secret_key FROM admins WHERE id = p_admin_id;
-        
-        IF v_secret_key IS NOT NULL THEN
-            -- HMAC-SHA256(order_id + "|" + payment_id, secret)
-            v_generated_signature := encode(extensions.hmac(p_gateway_order_id || '|' || p_gateway_payment_id, v_secret_key, 'sha256'), 'hex');
-            
-            IF v_generated_signature != p_gateway_signature THEN
-                RETURN json_build_object('success', false, 'error', 'Security Alert: Invalid Razorpay Signature');
-            END IF;
+        -- Allow bypass if verified by Edge Function (Service Role)
+        IF p_gateway_signature = 'VERIFIED_BY_EDGE_FUNCTION' THEN
+            -- Skip check, trust the caller (Edge Function)
+            NULL;
         ELSE
-            -- Keep legacy behavior if no key configured? No, Secure by default.
-            RETURN json_build_object('success', false, 'error', 'Razorpay secret not configured on server');
+            SELECT razorpay_key_secret INTO v_secret_key FROM admins WHERE id = p_admin_id;
+            
+            IF v_secret_key IS NOT NULL THEN
+                -- HMAC-SHA256(order_id + "|" + payment_id, secret)
+                v_generated_signature := encode(extensions.hmac(p_gateway_order_id || '|' || p_gateway_payment_id, v_secret_key, 'sha256'), 'hex');
+                
+                IF v_generated_signature != p_gateway_signature THEN
+                    RETURN json_build_object('success', false, 'error', 'Security Alert: Invalid Razorpay Signature');
+                END IF;
+            ELSE
+                -- Keep legacy behavior if no key configured? No, Secure by default.
+                RETURN json_build_object('success', false, 'error', 'Razorpay secret not configured on server');
+            END IF;
         END IF;
     END IF;
 
-    -- 3. Insert into payments table
-    INSERT INTO public.payments (
-        invoice_id,
-        tenure_id,
-        admin_id,
-        gateway_name,
-        gateway_payment_id,
-        gateway_order_id,
-        gateway_signature,
-        order_amount,
-        payment_mode,
-        payment_status,
-        customer_id,
-        customer_name,
-        customer_email,
-        payment_message,
-        payment_time
-    ) VALUES (
-        p_invoice_id,
-        p_tenure_id,
-        p_admin_id,
-        p_gateway_name,
-        p_gateway_payment_id,
-        p_gateway_order_id,
-        p_gateway_signature,
-        p_amount,
-        p_payment_mode,
-        'SUCCESS',
-        p_tenure_id::text,
-        p_customer_name,
-        p_customer_email,
-        'Payment Verified & Secured',
-        timezone('utc'::text, now())
-    )
-    RETURNING id INTO new_payment_id;
+    -- 2.5 Calculate Settlement Data (For Platform Mode)
+    DECLARE
+        v_payment_mode_config TEXT;
+        v_platform_fee DECIMAL := 0;
+        v_vendor_payout DECIMAL := 0;
+        v_settlement_status TEXT := 'COMPLETED'; -- Default for OWN mode
+    BEGIN
+        SELECT payment_mode INTO v_payment_mode_config FROM admins WHERE id = p_admin_id;
+        
+        IF v_payment_mode_config = 'PLATFORM' THEN
+            -- Logic: 2% Platform Fee
+            v_platform_fee := ROUND((p_amount * 0.02), 2);
+            v_vendor_payout := p_amount - v_platform_fee;
+            v_settlement_status := 'PENDING';
+        END IF;
+
+        -- 3. Insert into payments table
+        INSERT INTO public.payments (
+            invoice_id,
+            tenure_id,
+            admin_id,
+            gateway_name,
+            gateway_payment_id,
+            gateway_order_id,
+            gateway_signature,
+            order_amount,
+            payment_mode,
+            payment_status,
+            customer_id,
+            customer_name,
+            customer_email,
+            payment_message,
+            payment_time,
+            platform_fee,
+            vendor_payout,
+            settlement_status
+        ) VALUES (
+            p_invoice_id,
+            p_tenure_id,
+            p_admin_id,
+            p_gateway_name,
+            p_gateway_payment_id,
+            p_gateway_order_id,
+            p_gateway_signature,
+            p_amount,
+            p_payment_mode,
+            'SUCCESS',
+            p_tenure_id::text,
+            p_customer_name,
+            p_customer_email,
+            'Payment Verified & Secured',
+            timezone('utc'::text, now()),
+            v_platform_fee,
+            v_vendor_payout,
+            v_settlement_status
+        )
+        RETURNING id INTO new_payment_id;
+    END;
 
     -- 4. Update Invoice Status to PAID
     UPDATE public.invoices

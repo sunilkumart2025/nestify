@@ -65,6 +65,11 @@ export function Setup2FA({ onComplete, onCancel }: Setup2FAProps) {
                     toast.error("2FA enabled, but failed to save backup codes.");
                 }
 
+                // IMPORTANT: Update Metadata for Login Check
+                await supabase.auth.updateUser({
+                    data: { is_2fa_enabled: true }
+                });
+
                 setStep('success');
                 toast.success("2FA Enabled Successfully!");
                 // No timeout here, we want them to click "Next"

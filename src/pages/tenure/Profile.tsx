@@ -55,7 +55,7 @@ export function TenureProfile() {
             setValue('fullName', data.full_name);
             setValue('phone', data.phone);
             setRoomDetails(data.room);
-            setIs2FAEnabled(data.is_2fa_enabled || false);
+            setIs2FAEnabled(data.two_factor_enabled || false);
             setNestIdStatus(data.nestid_status || 'unverified');
             setNestIdData({
                 dob: data.dob || '',

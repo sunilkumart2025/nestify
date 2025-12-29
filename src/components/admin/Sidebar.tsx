@@ -26,6 +26,7 @@ import { cn } from '../../lib/utils';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 
+
 const navigation = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
     { name: 'Verify ID', href: '/admin/verify-id', icon: ScanLine },
@@ -38,10 +39,11 @@ const navigation = [
     { name: 'Analysis', href: '/admin/analysis', icon: BarChart3 },
     { name: 'Feedback', href: '/admin/feedback', icon: ThumbsUp },
     { name: 'Audit Logs', href: '/admin/audit-logs', icon: FileClock },
-    { name: 'Payments', href: '/admin/payments', icon: CreditCard },
+
     { name: 'EXPENSES', href: '/admin/expenses', icon: Receipt },
     { name: 'Notifications', href: '/admin/notifications', icon: Bell },
     { name: 'Calendar', href: '/admin/calendar', icon: Calendar },
+    { name: 'Payment Settings', href: '/admin/payments', icon: CreditCard },
     { name: 'Profile', href: '/admin/profile', icon: Settings },
 ];
 
@@ -68,11 +70,16 @@ export function AdminSidebar({ onClose }: AdminSidebarProps) {
                 <X className="h-6 w-6" />
             </button>
 
-            <div className="flex h-16 items-center justify-center border-b border-slate-800 space-x-2">
-                <img src="/logo.jpg" alt="Nestify" className="h-8 w-8 rounded-lg object-cover" />
-                <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
-                    Nestify Admin
-                </span>
+            <div className="p-4 border-b border-slate-800">
+                <div className="flex items-center gap-3 px-2">
+                    <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-lg">
+                        N
+                    </div>
+                    <div>
+                        <h2 className="text-lg font-bold text-white leading-none">Nestify</h2>
+                        <p className="text-xs text-slate-400 mt-1">Admin Dashboard</p>
+                    </div>
+                </div>
             </div>
 
             <div className="flex-1 overflow-y-auto py-4">

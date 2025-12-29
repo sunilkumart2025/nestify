@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { TenureSidebar } from '../tenure/Sidebar';
-import { Menu } from 'lucide-react';
+import { Menu, Trophy } from 'lucide-react'; // Import Trophy
 import { useDeviceTracker } from '../../hooks/useDeviceTracker'; // Import Hook
 import { WelcomeBanner } from '../tenure/WelcomeBanner';
 import { ChatWidget } from '../../components/chat/ChatWidget';

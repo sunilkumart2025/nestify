@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { sendEmail, EmailTemplates } from '../../lib/email';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
@@ -134,7 +135,32 @@ export function BulkGenerateBillModal({ isOpen, onClose, tenures, onSuccess }: B
 
             if (error) throw error;
 
-            toast.success(`Generated ${selectedIds.size} invoices successfully!`);
+            // Send Emails in Parallel
+            toast.loading(`Sending ${selectedIds.size} emails...`, { duration: 3000 });
+
+            const emailPromises = Array.from(selectedIds).map(async (tenureId) => {
+                const tenant = tenures.find(t => t.id === tenureId);
+                if (!tenant?.email) return;
+
+                try {
+                    await sendEmail({
+                        to: tenant.email,
+                        subject: `New Invoice: ${formData.month} Rent`,
+                        html: EmailTemplates.invoiceNotification(
+                            tenant.full_name,
+                            formatCurrency(total),
+                            formData.month,
+                            new Date(formData.due_date).toLocaleDateString()
+                        )
+                    });
+                } catch (err) {
+                    console.error("Failed to email", tenant.email, err);
+                }
+            });
+
+            await Promise.all(emailPromises);
+
+            toast.success(`Generated ${selectedIds.size} invoices & sent emails!`);
             onSuccess();
             onClose();
             setSelectedIds(new Set());

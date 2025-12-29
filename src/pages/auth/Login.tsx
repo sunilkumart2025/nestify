@@ -111,6 +111,74 @@ export function Login() {
 
             const role = authData.user.user_metadata.role;
 
+            // Check for 2FA (Database Source of Truth)
+            let is2FAEnabled = false;
+
+            if (role === 'admin') {
+                const { data: adminProfile } = await supabase
+                    .from('admins')
+                    .select('two_factor_enabled')
+                    .eq('id', userId)
+                    .single();
+                is2FAEnabled = adminProfile?.two_factor_enabled || false;
+            } else if (role === 'tenure') {
+                const { data: tenureProfile } = await supabase
+                    .from('tenures')
+                    .select('two_factor_enabled')
+                    .eq('id', userId)
+                    .single();
+                is2FAEnabled = tenureProfile?.two_factor_enabled || false;
+            }
+
+            if (is2FAEnabled) {
+                // Send OTP to email
+                const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+                const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+                // Store OTP in database
+                const { error: otpError } = await supabase
+                    .from('otp_codes')
+                    .insert({
+                        email: data.email,
+                        code: otpCode,
+                        expires_at: expiresAt.toISOString()
+                    });
+
+                if (otpError) {
+                    console.error('OTP storage error:', otpError);
+                    throw new Error('Failed to send verification code');
+                }
+
+                // Send email via Edge Function
+                const { error: emailError } = await supabase.functions.invoke('send-email', {
+                    body: {
+                        to: data.email,
+                        subject: 'Your Nestify Login Code',
+                        html: `
+                            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                                <h2 style="color: #2563eb;">Login Verification Code</h2>
+                                <p>Your verification code is:</p>
+                                <div style="background: #f3f4f6; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 8px; margin: 20px 0;">
+                                    ${otpCode}
+                                </div>
+                                <p style="color: #6b7280; font-size: 14px;">This code will expire in 10 minutes.</p>
+                                <p style="color: #6b7280; font-size: 14px;">If you didn't request this code, please ignore this email.</p>
+                            </div>
+                        `
+                    }
+                });
+
+                if (emailError) {
+                    console.error('Email send error:', emailError);
+                }
+
+                toast.success('Verification code sent to your email!');
+                setLoginEmail(data.email);
+                setShow2FA(true);
+                setIsLoading(false);
+                return;
+            }
+
             proceedToDashboard(role, authData.user.id);
 
         } catch (error: any) {
@@ -413,8 +481,8 @@ export function Login() {
                             }
                         }}
                         onCancel={handle2FACancel}
-                        actionLabel="Verify & Enter Portal"
-                        shouldDelete={false}
+                        actionLabel="Verify & Login"
+                        shouldDelete={true}
                     />
                 </div>
             )}

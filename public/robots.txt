@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /tenure/
+
+Sitemap: https://mynestify.online/sitemap.xml

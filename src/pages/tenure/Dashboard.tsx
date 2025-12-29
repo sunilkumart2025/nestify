@@ -13,6 +13,7 @@ import { Roommates } from './Roommates';
 import { TenureNotifications } from './Notifications';
 import { TenureCalendar } from './Calendar';
 import { TenureCommunity } from './Community';
+import { Achievements } from './Achievements';
 
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
@@ -55,6 +56,7 @@ export function TenureDashboard() {
                     <Route path="community" element={<TenureCommunity />} />
                     <Route path="calendar" element={<TenureCalendar />} />
                     <Route path="digital-id" element={<DigitalID />} />
+                    <Route path="achievements" element={<Achievements />} />
                     <Route path="profile" element={<TenureProfile />} />
                 </Route>
             </Routes>

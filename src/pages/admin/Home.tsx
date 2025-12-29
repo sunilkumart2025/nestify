@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Users, BedDouble, Wallet, Plus, Trash2, Megaphone, AlertTriangle as HelperAlertTriangle } from 'lucide-react';
 import { formatCurrency, formatDate } from '../../lib/utils';
 import { supabase } from '../../lib/supabase';
@@ -30,7 +30,10 @@ export function AdminHome() {
             const { data: pulseData, error: rpcError } = await supabase
                 .rpc('get_admin_dashboard_stats', { p_admin_id: user.id });
 
-            if (rpcError) throw rpcError;
+            if (rpcError) {
+                // Fallback if RPC fails or doesn't exist (legacy mode)
+                console.error("RPC Error", rpcError);
+            }
 
             if (pulseData) {
                 setStats({
@@ -48,7 +51,7 @@ export function AdminHome() {
                 .from('invoices')
                 .select(`
                     id, total_amount, status, created_at,
-                    tenure:tenures(full_name, room:rooms(room_number))
+                    tenure:tenures!inner(full_name, room:rooms!inner(room_number))
                 `)
                 .eq('admin_id', user.id)
                 .eq('status', 'paid')
@@ -62,7 +65,7 @@ export function AdminHome() {
                 .from('invoices')
                 .select(`
                     id, total_amount, month,
-                    tenure:tenures(full_name, room:rooms(room_number))
+                    tenure:tenures!inner(full_name, room:rooms!inner(room_number))
                 `)
                 .eq('admin_id', user.id)
                 .eq('status', 'pending')
@@ -138,7 +141,7 @@ export function AdminHome() {
             changeType: stats.pendingDues > 0 ? 'decrease' : 'increase',
             icon: HelperAlertTriangle,
             desc: 'Action Required',
-            color: 'text-rose-600 bg-rose-100' // Custom helper needed for icon
+            color: 'text-rose-600 bg-rose-100'
         },
     ];
 

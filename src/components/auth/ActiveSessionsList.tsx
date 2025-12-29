@@ -41,6 +41,8 @@ export function ActiveSessionsList({ hideIp = false }: ActiveSessionsListProps) 
     };
 
     const revokeSession = async (deviceId: string) => {
+        if (!confirm("Are you sure you want to revoke this device? It will be logged out.")) return;
+
         try {
             const { error } = await supabase.rpc('untrust_device', { p_device_id: deviceId });
             if (error) throw error;

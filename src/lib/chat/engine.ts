@@ -5,6 +5,7 @@ import { parseChartQuery } from './parser';
 import { fetchChartData } from './dataEngine';
 import type { ChartPayload } from '../../components/chat/ChartRenderer';
 import { updateContext, mergeContext } from './ChatState';
+import { queryKnowledgeBase } from './knowledgeBase';
 
 export interface BotResponse {
     text: string;
@@ -17,33 +18,46 @@ export const processQuery = async (query: string, role: 'admin' | 'tenure', user
     const delay = Math.floor(Math.random() * 500) + 500; // 500-1000ms
     await new Promise(resolve => setTimeout(resolve, delay));
 
-    // 0. Check for Chart/Data Intent (Advanced NLP)
-    let chartIntent = parseChartQuery(query);
-
-    // Context Merging (Handle "Compare to...", "Show details")
-    chartIntent = mergeContext(chartIntent);
-
-    if (chartIntent.isChart) {
-        // Update Context for next turn
-        updateContext(chartIntent);
-
-        // Async Log (Fire & Forget)
+    // 1. Knowledge Base Check (Priority 1)
+    const kbResponse = queryKnowledgeBase(query, role);
+    if (kbResponse) {
         if (userId) {
             supabase.from('chat_messages').insert([
                 { user_id: userId, sender: 'user', content: query },
-                {
+                { user_id: userId, sender: 'bot', content: kbResponse.text }
+            ]).then(() => { });
+        }
+        return {
+            text: kbResponse.text,
+            actions: kbResponse.actions
+        };
+    }
+
+    // 2. Check for Chart/Data Intent (Priority 2)
+    const chartIntent = mergeContext(parseChartQuery(query));
+
+    if (chartIntent.isChart) {
+        // ... (Existing Chart Logic)
+        updateContext(chartIntent);
+
+        // Log user query
+        if (userId) {
+            supabase.from('chat_messages').insert([{ user_id: userId, sender: 'user', content: query }]).then(() => { });
+        }
+
+        const chartPayload = await fetchChartData(chartIntent, role, userId);
+
+        if (chartPayload) {
+            // Log success response
+            if (userId) {
+                supabase.from('chat_messages').insert([{
                     user_id: userId,
                     sender: 'bot',
                     content: `Here is the ${chartIntent.metric} overview (${chartIntent.timeFrame}):`,
                     meta: { chart: chartIntent }
-                }
-            ]).then(({ error }: { error: any }) => {
-                if (error) console.error("Chat Log Error", error);
-            });
-        }
+                }]).then(() => { });
+            }
 
-        const chartPayload = await fetchChartData(chartIntent, role, userId);
-        if (chartPayload) {
             return {
                 text: `Here is the ${chartIntent.metric} overview (${chartIntent.timeFrame}):`,
                 chart: chartPayload,
@@ -61,6 +75,8 @@ export const processQuery = async (query: string, role: 'admin' | 'tenure', user
             };
         }
     }
+
+
 
     const intents = role === 'admin' ? ADMIN_INTENTS : TENURE_INTENTS;
     const lowerQuery = query.toLowerCase();
@@ -108,7 +124,9 @@ export const processQuery = async (query: string, role: 'admin' | 'tenure', user
 
     // 3. Fallback
     return {
-        text: "I'm still learning! Try asking about 'revenue', 'occupancy', or 'complaints'.",
-        actions: []
+        text: "I'm not sure about that one yet. Please contact our support team for assistance.",
+        actions: [
+            { label: 'Contact Support', type: 'link', value: 'mailto:support@nestify.xyz' }
+        ]
     };
 };

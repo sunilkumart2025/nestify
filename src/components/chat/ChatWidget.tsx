@@ -79,20 +79,28 @@ export function ChatWidget({ userType, userName: propUserName }: ChatWidgetProps
         setInput('');
         setIsTyping(true);
 
-        const response: BotResponse = await processQuery(userMsg.text, userType, userId);
+        try {
+            const response: BotResponse = await processQuery(userMsg.text, userType, userId);
 
-
-        setIsTyping(false);
-        const botMsg: Message = {
-            id: (Date.now() + 1).toString(),
-            sender: 'bot',
-            text: response.text,
-            actions: response.actions,
-            chart: response.chart,
-            timestamp: new Date()
-        };
-
-        setMessages(prev => [...prev, botMsg]);
+            setMessages(prev => [...prev, {
+                id: (Date.now() + 1).toString(),
+                sender: 'bot',
+                text: response.text,
+                actions: response.actions,
+                chart: response.chart,
+                timestamp: new Date()
+            }]);
+        } catch (error) {
+            console.error("Bot Error:", error);
+            setMessages(prev => [...prev, {
+                id: (Date.now() + 1).toString(),
+                sender: 'bot',
+                text: "I'm having trouble connecting right now. Please try again later.",
+                timestamp: new Date()
+            }]);
+        } finally {
+            setIsTyping(false);
+        }
     };
 
     const handleAction = (action: ChatAction, chartPayload?: ChartPayload) => {
@@ -150,11 +158,20 @@ export function ChatWidget({ userType, userName: propUserName }: ChatWidgetProps
                         className="fixed bottom-24 right-6 z-[100] w-[350px] md:w-[400px] h-[550px] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 ring-1 ring-black/5"
                     >
                         <div className="bg-slate-900 p-4 flex items-center gap-3 shadow-md">
-                            <div className="h-10 w-10 bg-indigo-500/20 rounded-full flex items-center justify-center border border-white/10">
-                                <Bot className="text-indigo-400 h-6 w-6" />
+                            <div className="h-10 w-10 bg-indigo-500/20 rounded-full flex items-center justify-center border border-white/10 overflow-hidden">
+                                <img
+                                    src="/nexon.jpg"
+                                    alt="Nexon"
+                                    className="h-full w-full object-cover"
+                                    onError={(e) => {
+                                        e.currentTarget.style.display = 'none';
+                                        e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                    }}
+                                />
+                                <Bot className="text-indigo-400 h-6 w-6 hidden" />
                             </div>
                             <div>
-                                <h3 className="font-bold text-white text-sm">NestBot Assistant</h3>
+                                <h3 className="font-bold text-white text-sm">Nexon</h3>
                                 <p className="text-xs text-slate-400 flex items-center gap-1">
                                     <span className="h-2 w-2 bg-green-500 rounded-full animate-pulse" /> Online
                                 </p>

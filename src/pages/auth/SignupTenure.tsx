@@ -16,6 +16,9 @@ const signupSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
   phone: z.string().min(10, 'Phone number must be at least 10 digits'),
   stayKey: z.string().min(1, 'StayKey is required'),
+  acceptedTerms: z.boolean().refine((val) => val === true, {
+    message: 'You must accept the Terms of Service',
+  }),
 });
 
 type SignupFormData = z.infer<typeof signupSchema>;
@@ -166,6 +169,31 @@ export function SignupTenure() {
               </p>
             </div>
           </div>
+
+          {/* Terms & Conditions Checkbox */}
+          <div className="flex items-start">
+            <div className="flex items-center h-5">
+              <input
+                id="terms"
+                type="checkbox"
+                {...register('acceptedTerms')}
+                className="w-4 h-4 border border-slate-300 rounded bg-white focus:ring-2 focus:ring-secondary cursor-pointer"
+              />
+            </div>
+            <label htmlFor="terms" className="ml-3 text-sm text-slate-600">
+              I agree to the{' '}
+              <Link to="/terms" target="_blank" className="font-bold text-secondary hover:underline">
+                Terms of Service
+              </Link>
+              {' '}and{' '}
+              <Link to="/privacy" target="_blank" className="font-bold text-secondary hover:underline">
+                Privacy Policy
+              </Link>
+            </label>
+          </div>
+          {errors.acceptedTerms && (
+            <p className="text-sm text-red-600 -mt-2">{errors.acceptedTerms.message}</p>
+          )}
 
           <Button type="submit" className="w-full bg-secondary hover:bg-secondary-hover" isLoading={isLoading}>
             Verify & Create Account

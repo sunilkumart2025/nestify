@@ -46,13 +46,14 @@ export function PaymentModal({ isOpen, onClose, invoice, onSuccess }: PaymentMod
     const handleRazorpayPayment = async () => {
         setStep('processing');
         try {
-            // 1. Create Order Session (Server-Side)
-            const { data: orderData, error: orderError } = await supabase.rpc('create_razorpay_order', {
-                p_invoice_id: invoice.id
+            // 1. Create Order via Edge Function (Secure Master Key)
+            const { data: orderData, error: orderError } = await supabase.functions.invoke('create-order', {
+                body: { invoice_id: invoice.id }
             });
 
             if (orderError || !orderData?.success) {
-                throw new Error(orderData?.message || 'Failed to initialize payment');
+                console.error('Order Create Failed:', orderError || orderData);
+                throw new Error(orderData?.error || 'Failed to initialize payment');
             }
 
             // 2. Load SDK
@@ -73,31 +74,31 @@ export function PaymentModal({ isOpen, onClose, invoice, onSuccess }: PaymentMod
                 handler: async function (response: any) {
                     // Success Callback
                     try {
-                        const { data: rpcData, error: rpcError } = await supabase.rpc('record_payment_success', {
-                            p_invoice_id: invoice.id,
-                            p_tenure_id: invoice.tenure_id,
-                            p_admin_id: invoice.admin_id,
-                            p_gateway_name: 'razorpay',
-                            p_gateway_payment_id: response.razorpay_payment_id,
-                            p_gateway_order_id: response.razorpay_order_id,
-                            p_gateway_signature: response.razorpay_signature,
-                            p_amount: invoice.total_amount, // Still pass for double-check
-                            p_payment_mode: 'online',
-                            p_customer_name: invoice.tenure?.full_name || 'Tenant',
-                            p_customer_email: invoice.tenure?.email || 'email@example.com'
+                        // Call Edge Function to Verify Signature and Record Payment
+                        const { data: verifyData, error: verifyError } = await supabase.functions.invoke('verify-payment', {
+                            body: {
+                                invoice_id: invoice.id,
+                                razorpay_payment_id: response.razorpay_payment_id,
+                                razorpay_order_id: response.razorpay_order_id,
+                                razorpay_signature: response.razorpay_signature
+                            }
                         });
 
-                        if (rpcError || (rpcData && !rpcData.success)) {
-                            console.error('DB Update Failed:', rpcError || rpcData);
-                            toast.error(rpcData?.error || 'Payment verification failed.');
+                        if (verifyError || (verifyData && !verifyData.success)) {
+                            console.error('Verification Failed:', verifyError || verifyData);
+                            toast.error(verifyData?.error || 'Payment verification failed.');
                             return;
                         }
 
                         setLastTransactionId(response.razorpay_payment_id);
                         setStep('success');
 
-                        // Auto Email
-                        sendReceiptEmail(invoice, response.razorpay_payment_id);
+                        // Auto Email with Feedback
+                        toast.promise(sendReceiptEmail(invoice, response.razorpay_payment_id), {
+                            loading: 'Sending receipt...',
+                            success: 'Receipt sent to your email!',
+                            error: (err) => `Receipt failed: ${err.message}`
+                        });
 
                     } catch (dbErr) {
                         console.error(dbErr);
@@ -178,22 +179,18 @@ export function PaymentModal({ isOpen, onClose, invoice, onSuccess }: PaymentMod
     };
 
     const sendReceiptEmail = async (inv: Invoice, txId: string) => {
-        try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user && user.email) {
-                await sendEmail({
-                    to: user.email,
-                    subject: `Payment Receipt: ${inv.month} Rent`,
-                    html: EmailTemplates.paymentReceipt(
-                        inv.tenure?.full_name || 'Valued Tenant',
-                        formatCurrency(inv.total_amount),
-                        txId,
-                        new Date().toLocaleDateString()
-                    )
-                });
-            }
-        } catch (err) {
-            console.error('Failed to send receipt email', err);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user && user.email) {
+            await sendEmail({
+                to: user.email,
+                subject: `Payment Receipt: ${inv.month} Rent`,
+                html: EmailTemplates.paymentReceipt(
+                    inv.tenure?.full_name || 'Valued Tenant',
+                    formatCurrency(inv.total_amount),
+                    txId,
+                    new Date().toLocaleDateString()
+                )
+            });
         }
     };
 
@@ -253,58 +250,19 @@ export function PaymentModal({ isOpen, onClose, invoice, onSuccess }: PaymentMod
                     </div>
                 )}
 
-                {/* STEP 1: METHOD SELECTION */}
+                {/* STEP 1: CONFIRM & PAY (Directly Razorpay) */}
                 {step === 'method' && (
                     <div className="space-y-6 flex-1">
-                        <div>
-                            <label className="text-sm font-medium text-slate-700 mb-3 block">Select Payment Method</label>
-                            <div className="space-y-3">
-                                {/* Razorpay Option */}
-                                <button
-                                    onClick={() => setPaymentMethod('razorpay')}
-                                    className={`w-full p-4 rounded-xl border-2 transition-all flex items-center justify-between group ${paymentMethod === 'razorpay'
-                                        ? 'border-blue-600 bg-blue-50/50'
-                                        : 'border-slate-200 hover:border-blue-300 hover:bg-slate-50'
-                                        }`}
-                                >
-                                    <div className="flex items-center gap-4">
-                                        <div className={`p-2 rounded-lg ${paymentMethod === 'razorpay' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                                            <CreditCard className="h-6 w-6" />
-                                        </div>
-                                        <div className="text-left">
-                                            <div className="font-bold text-slate-900 group-hover:text-blue-700">Cards & Netbanking</div>
-                                            <div className="text-xs text-slate-500">Powered by Razorpay (Real)</div>
-                                        </div>
-                                    </div>
-                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'razorpay' ? 'border-blue-600' : 'border-slate-300'
-                                        }`}>
-                                        {paymentMethod === 'razorpay' && <div className="w-2.5 h-2.5 rounded-full bg-blue-600" />}
-                                    </div>
-                                </button>
-
-                                {/* Cashfree Option */}
-                                <button
-                                    onClick={() => setPaymentMethod('cashfree')}
-                                    className={`w-full p-4 rounded-xl border-2 transition-all flex items-center justify-between group ${paymentMethod === 'cashfree'
-                                        ? 'border-pink-600 bg-pink-50/50'
-                                        : 'border-slate-200 hover:border-pink-300 hover:bg-slate-50'
-                                        }`}
-                                >
-                                    <div className="flex items-center gap-4">
-                                        <div className={`p-2 rounded-lg ${paymentMethod === 'cashfree' ? 'bg-pink-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                                            <Smartphone className="h-6 w-6" />
-                                        </div>
-                                        <div className="text-left">
-                                            <div className="font-bold text-slate-900 group-hover:text-pink-700">UPI & Wallets</div>
-                                            <div className="text-xs text-slate-500">Powered by Cashfree (Test Mode)</div>
-                                        </div>
-                                    </div>
-                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'cashfree' ? 'border-pink-600' : 'border-slate-300'
-                                        }`}>
-                                        {paymentMethod === 'cashfree' && <div className="w-2.5 h-2.5 rounded-full bg-pink-600" />}
-                                    </div>
-                                </button>
+                        <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className="p-2 bg-blue-100 rounded-lg">
+                                    <CreditCard className="h-5 w-5 text-blue-600" />
+                                </div>
+                                <h3 className="font-bold text-slate-900">Secure Payment</h3>
                             </div>
+                            <p className="text-sm text-slate-600">
+                                You are about to pay <span className="font-bold text-slate-900">{formatCurrency(invoice.total_amount)}</span> via Razorpay Secure Gateway.
+                            </p>
                         </div>
 
                         <div className="mt-auto pt-6 border-t border-slate-100">
@@ -313,10 +271,10 @@ export function PaymentModal({ isOpen, onClose, invoice, onSuccess }: PaymentMod
                                 256-bit SSL Encrypted Connection
                             </div>
                             <Button
-                                onClick={paymentMethod === 'razorpay' ? handleRazorpayPayment : handleCashfreePayment}
-                                className="w-full h-12 text-lg shadow-lg shadow-primary/20"
+                                onClick={handleRazorpayPayment}
+                                className="w-full h-12 text-lg shadow-lg shadow-primary/20 bg-slate-900 hover:bg-slate-800 text-white"
                             >
-                                Pay {formatCurrency(invoice.total_amount)}
+                                Pay Now
                             </Button>
                         </div>
                     </div>

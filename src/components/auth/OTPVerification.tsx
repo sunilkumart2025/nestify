@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { supabase } from '../../lib/supabase';
+import { sendEmail, EmailTemplates } from '../../lib/email';
 import { toast } from 'react-hot-toast';
 import { Timer } from 'lucide-react';
 
@@ -53,8 +54,9 @@ export function OTPVerification({ email, onVerified, onCancel, actionLabel = "Ve
         setIsSending(true);
         setTimeLeft(120);
 
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+
         try {
-            const code = Math.floor(100000 + Math.random() * 900000).toString();
             const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
             const { error: dbError } = await supabase
@@ -67,24 +69,30 @@ export function OTPVerification({ email, onVerified, onCancel, actionLabel = "Ve
 
             if (dbError) throw dbError;
 
-            await fetch('https://api.resend.com/emails', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${resendApiKey}`
-                },
-                body: JSON.stringify({
-                    from: 'Nestify <onboarding@resend.dev>',
-                    to: [email],
-                    subject: 'Your Nestify Verification Code',
-                    html: `<p>Your verification code is: <strong style="font-size: 24px;">${code}</strong></p><p>This code expires in 10 minutes.</p>`
-                })
+            // Call Supabase Edge Function to send email
+            if (dbError) throw dbError;
+
+            if (dbError) throw dbError;
+
+            // Use centralized email function with enhanced template
+            const emailSent = await sendEmail({
+                to: email,
+                subject: 'Your Nestify Verification Code',
+                html: EmailTemplates.otpVerification(code)
             });
-            console.log('%c [DEV] Generated OTP: ' + code, 'background: #222; color: #bada55; padding: 4px; border-radius: 4px;');
-            toast.success('OTP sent!');
+
+            if (!emailSent) {
+                throw new Error('Failed to send email via centralized service');
+            }
+
+            toast.success('OTP sent! Please check your email.');
         } catch (error: any) {
             console.error(error);
-            toast.error('Failed to send OTP');
+            toast.error('Failed to send OTP. Please try again.');
+
+            // In dev environment, if email fails, we might still want to allow testing
+            // Note: OTP is NOT logged to console for security
+
             setTimeLeft(0);
         } finally {
             setIsSending(false);

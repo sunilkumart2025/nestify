@@ -17,7 +17,8 @@ import {
     Users,
     Bell,
     Calendar,
-    Megaphone // Added
+    Megaphone,
+    Trophy
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { supabase } from '../../lib/supabase';
@@ -32,6 +33,7 @@ const navigation = [
     { name: 'Payments', href: '/tenure/payments', icon: Receipt },
     { name: 'Complaints', href: '/tenure/complaints', icon: ClipboardList },
     { name: 'Community', href: '/tenure/community', icon: Megaphone },
+    { name: 'Achievements', href: '/tenure/achievements', icon: Trophy },
     { name: 'Messages', href: '/tenure/messages', icon: MessageSquare },
     { name: 'Notifications', href: '/tenure/notifications', icon: Bell },
     { name: 'Calendar', href: '/tenure/calendar', icon: Calendar },
@@ -72,7 +74,7 @@ export function TenureSidebar({ onClose }: TenureSidebarProps) {
             // 2. Get Admin Details
             const { data: adminData, error: adminError } = await supabase
                 .from('admins')
-                .select('full_name, phone, hostel_name, email')
+                .select('full_name, phone, hostel_name')
                 .eq('id', tenureData.admin_id)
                 .single();
 
@@ -89,20 +91,13 @@ export function TenureSidebar({ onClose }: TenureSidebarProps) {
                         <span className="text-sm text-slate-500">{adminData.full_name}</span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 mt-2">
+                    <div className="mt-4">
                         <a
                             href={`tel:${adminData.phone}`}
-                            className="flex flex-col items-center justify-center p-3 bg-green-50 hover:bg-green-100 rounded-xl text-green-700 transition-colors border border-green-100"
+                            className="flex items-center justify-center gap-2 p-3 bg-green-50 hover:bg-green-100 rounded-xl text-green-700 transition-colors border border-green-200 w-full"
                         >
-                            <Phone className="h-6 w-6 mb-1" />
-                            <span className="font-bold">Call</span>
-                        </a>
-                        <a
-                            href={`mailto:${(adminData as any).email || ''}`}
-                            className={`flex flex-col items-center justify-center p-3 bg-blue-50 hover:bg-blue-100 rounded-xl text-blue-700 transition-colors border border-blue-100 ${!(adminData as any).email ? 'opacity-50 pointer-events-none' : ''}`}
-                        >
-                            <Mail className="h-6 w-6 mb-1" />
-                            <span className="font-bold">Mail</span>
+                            <Phone className="h-5 w-5" />
+                            <span className="font-bold">Call Owner</span>
                         </a>
                     </div>
 

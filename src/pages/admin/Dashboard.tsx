@@ -19,6 +19,8 @@ import { AdminFeedback } from './Feedback';
 import { AdminNotifications } from './Notifications';
 import { SmartCalendar } from './Calendar';
 import { SecuritySettings } from './SecuritySettings';
+import { PayoutsDashboard } from './PayoutsDashboard';
+import { PayoutSettings as ConnectPayout } from './PayoutSettings';
 
 
 import { useEffect, useState } from 'react';
@@ -76,6 +78,7 @@ export function AdminDashboard() {
                     <Route path="feedback" element={<AdminFeedback />} />
                     <Route path="profile" element={<AdminProfile />} />
                     <Route path="payments" element={<PaymentSettings />} />
+
                     <Route path="expenses" element={<Expenses />} />
                     <Route path="security" element={<SecuritySettings />} />
                     <Route path="verify-id" element={<VerifyID />} />

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import {
     Activity, Shield, Users, Database, Globe,
-    Wifi, Cpu, AlertOctagon, Terminal, Pause, Zap, DollarSign
+    Wifi, Cpu, AlertOctagon, Terminal, Pause, Zap, DollarSign, ArrowDownLeft
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -289,6 +289,12 @@ export function MonitorDashboard() {
                         className="flex items-center gap-2 text-xs border border-blue-700 px-3 py-1 rounded-sm text-blue-500 bg-blue-500/10 hover:bg-blue-500/20 transition-colors"
                     >
                         <DollarSign className="w-3 h-3" /> PAYMENTS
+                    </button>
+                    <button
+                        onClick={() => navigate('/monitor/settlements')}
+                        className="flex items-center gap-2 text-xs border border-purple-700 px-3 py-1 rounded-sm text-purple-500 bg-purple-500/10 hover:bg-purple-500/20 transition-colors"
+                    >
+                        <ArrowDownLeft className="w-3 h-3" /> SETTLEMENTS
                     </button>
                     {/* Threat Level Indicator */}
                     <div className={`flex items-center gap-2 px-3 py-1 rounded-sm border ${(stats?.alert_count || 0) > 50 ? 'border-red-500 text-red-500 bg-red-500/10' :

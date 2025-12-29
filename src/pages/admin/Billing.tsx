@@ -8,7 +8,7 @@ import { sendEmail, EmailTemplates } from '../../lib/email';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { formatCurrency } from '../../lib/utils';
-import { Plus, Download, Search, Loader2, MoreVertical, Eye, CheckCircle2, Trash2, Pencil, Users, MessageCircle, Shield } from 'lucide-react';
+import { Plus, Download, Search, Loader2, MoreVertical, Eye, CheckCircle2, Trash2, Pencil, Users, MessageCircle, Shield, CreditCard } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import type { Invoice, Tenure } from '../../lib/types';
 import { generateInvoicePDF } from '../../lib/pdf';
@@ -35,7 +35,7 @@ export function AdminBilling() {
 
     // Billing Configuration
     const BILLING_RULES = {
-        FIXED_FEE: 5,
+        FIXED_FEE: 20, // Updated to ₹20
         PLATFORM_PERCENT: 0.006, // 0.6%
         DEV_PERCENT: 0.0005,     // 0.05%
         SUPPORT_PERCENT: 0.0015, // 0.15%
@@ -84,10 +84,10 @@ export function AdminBilling() {
     const fetchData = async () => {
         try {
             const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return; // Add this specific early return for safety
+            if (!user) return;
 
-            // Updated query to fetch room price
-            const [invoicesRes, tenuresRes, duesRes] = await Promise.all([
+            // Updated query to fetch room price AND payment_mode
+            const [invoicesRes, tenuresRes, duesRes, adminRes] = await Promise.all([
                 supabase
                     .from('invoices')
                     .select('*, tenure:tenures(*, room:rooms(room_number))')
@@ -98,7 +98,8 @@ export function AdminBilling() {
                     .select('*, room:rooms(room_number, price)')
                     .eq('admin_id', user.id)
                     .eq('status', 'active'),
-                supabase.rpc('get_my_platform_dues')
+                supabase.rpc('get_my_platform_dues'),
+                supabase.from('admins').select('*, nestid_status, payment_mode').eq('id', user.id).single()
             ]);
 
             if (invoicesRes.error) throw invoicesRes.error;
@@ -107,15 +108,9 @@ export function AdminBilling() {
             setInvoices(invoicesRes.data || []);
             setTenures(tenuresRes.data || []);
             setPlatformDues(duesRes.data || 0);
+            setAdminProfile(adminRes.data);
+            setNestIdStatus(adminRes.data?.nestid_status || 'unverified');
 
-            // Fetch Admin Profile for PDF and NestID Status
-            const { data: adminData } = await supabase
-                .from('admins')
-                .select('*, nestid_status')
-                .eq('id', user.id)
-                .single();
-            setAdminProfile(adminData);
-            setNestIdStatus(adminData?.nestid_status || 'unverified');
         } catch (error) {
             console.error('Error fetching data:', error);
             toast.error('Failed to load billing data');
@@ -137,8 +132,8 @@ export function AdminBilling() {
         }
 
         const options = {
-            key: import.meta.env.VITE_PLATFORM_RAZORPAY_KEY || "rzp_test_YourKeyHere", // Centralized Key
-            amount: platformDues * 100, // in paise
+            key: import.meta.env.VITE_PLATFORM_RAZORPAY_KEY || "rzp_test_YourKeyHere",
+            amount: platformDues * 100,
             currency: "INR",
             name: "Nestify Platform",
             description: "Platform Service Fees",
@@ -146,12 +141,11 @@ export function AdminBilling() {
             handler: async function () {
                 const toastId = toast.loading("Verifying Payment...");
                 try {
-                    // Call RPC to clear dues
                     const { error } = await supabase.rpc('clear_platform_dues', { p_amount: platformDues });
                     if (error) throw error;
 
                     toast.success("Payment Successful! Dues Cleared.", { id: toastId });
-                    fetchData(); // Refresh
+                    fetchData();
                 } catch (err: any) {
                     toast.error("Failed to update ledger: " + err.message, { id: toastId });
                 }
@@ -168,12 +162,7 @@ export function AdminBilling() {
         rzp.open();
     };
 
-
-
-    // ... inside component
-
     const handleSendReminder = async (invoice: Invoice) => {
-        // 1. Email Reminder
         const toastId = toast.loading('Sending reminders...');
         try {
             const { data: { user } } = await supabase.auth.getUser();
@@ -181,12 +170,11 @@ export function AdminBilling() {
 
             if (!invoice.tenure?.email) throw new Error("Tenant email not found");
 
-            // Send Email
-            await sendEmail({
+            const emailPromise = sendEmail({
                 to: invoice.tenure.email,
                 subject: `Payment Reminder: ${invoice.month} Rent`,
                 html: EmailTemplates.paymentReminder(
-                    invoice.tenure.full_name || 'Resident',
+                    invoice.tenure.full_name,
                     formatCurrency(invoice.total_amount),
                     invoice.month,
                     invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : 'Immediate',
@@ -194,10 +182,14 @@ export function AdminBilling() {
                 )
             });
 
-            toast.success('Email sent!', { id: toastId });
+            toast.promise(emailPromise, {
+                loading: `Sending reminder to ${invoice.tenure.email}...`,
+                success: `Reminder sent to ${invoice.tenure.email}!`,
+                error: 'Failed to send reminder email.'
+            });
         } catch (error: any) {
             console.error(error);
-            toast.error('Email failed: ' + error.message, { id: toastId });
+            toast.error('Email failed: ' + error.message);
         }
     };
 
@@ -210,8 +202,7 @@ export function AdminBilling() {
         const toastId = toast.loading('Sending WhatsApp...');
 
         try {
-            // Updated: Call Platform RPC with Branded Message
-            const paymentLink = `https://nestify.app/pay/${invoice.id.substring(0, 8)}`; // Mock link or real deep link
+            const paymentLink = `https://nestify.app/pay/${invoice.id.substring(0, 8)}`;
             const brandedMessage = `🔔 *PAYMENT REMINDER* 🔔\n\n` +
                 `Dear *${invoice.tenure.full_name.split(' ')[0]}*,\n\n` +
                 `Your rent for *${invoice.month}* is overdue.\n` +
@@ -222,7 +213,6 @@ export function AdminBilling() {
                 `🔗 ${paymentLink}\n\n` +
                 `_~ Team Nestify_`;
 
-            // Client-side Open (Branded but Manual)
             const encodedMessage = encodeURIComponent(brandedMessage);
             const whatsappUrl = `https://wa.me/${invoice.tenure.phone.replace(/\D/g, '')}?text=${encodedMessage}`;
 
@@ -234,34 +224,68 @@ export function AdminBilling() {
         }
     };
 
+    const handleRunAutoReminders = async () => {
+        const pendingInvoices = invoices.filter(inv => inv.status === 'pending' && inv.due_date && inv.tenure?.email);
+
+        const dueSoon = pendingInvoices.filter(inv => {
+            const today = new Date();
+            const due = new Date(inv.due_date!);
+            const diffTime = due.getTime() - today.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            return diffDays <= 3;
+        });
+
+        if (dueSoon.length === 0) {
+            toast.success("No pending invoices due soon!", { icon: '👏' });
+            return;
+        }
+
+        if (!confirm(`Found ${dueSoon.length} invoices due soon/overdue. Send email reminders to all?`)) return;
+
+        const toastId = toast.loading(`Sending ${dueSoon.length} reminders...`);
+        let sentCount = 0;
+        let failCount = 0;
+
+        const { data: { user } } = await supabase.auth.getUser();
+
+        for (const invoice of dueSoon) {
+            try {
+                await sendEmail({
+                    to: invoice.tenure!.email,
+                    subject: `Payment Reminder: Rent Due for ${invoice.month}`,
+                    html: EmailTemplates.paymentReminder(
+                        invoice.tenure!.full_name,
+                        formatCurrency(invoice.total_amount),
+                        invoice.month,
+                        new Date(invoice.due_date!).toLocaleDateString(),
+                        adminProfile?.full_name || 'Nestify Admin'
+                    )
+                });
+                console.log(`✅ Reminder sent to ${invoice.tenure!.email}`);
+                sentCount++;
+            } catch (err) {
+                console.error("Reminder failed for", invoice.id, err);
+                failCount++;
+            }
+        }
+
+        toast.success(`Sent: ${sentCount} (Check Console for details), Failed: ${failCount}`, { id: toastId, duration: 5000 });
+    };
+
+
+
     const handleCreateBill = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // NestID Blocker
         if (nestIdStatus !== 'verified') {
             toast.error("Please verify your identity first!");
             navigate('/admin/profile');
             return;
         }
 
-        // Assuming setSaving is defined elsewhere, if not, remove or define it.
-        // setSaving(true); 
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
-
-            // Verify Admin Record Exists to prevent FK Error
-            const { data: adminRecord, error: adminError } = await supabase
-                .from('admins')
-                .select('id')
-                .eq('id', user.id)
-                .single();
-
-            if (adminError || !adminRecord) {
-                console.error("Admin record check failed:", adminError);
-                toast.error("Admin profile missing! Please go to Profile and save your details first.");
-                return;
-            }
 
             // 1. Calculate Base Subtotal
             const rent = parseFloat(newBill.rent) || 0;
@@ -273,31 +297,53 @@ export function AdminBilling() {
 
             const subtotal = rent + electricity + water + maintenance;
 
-            // 2. Calculate Platform Fees (Automated)
-            const platformShare = Math.round(subtotal * BILLING_RULES.PLATFORM_PERCENT);
-            const devShare = Math.round(subtotal * BILLING_RULES.DEV_PERCENT);
-            const supportShare = Math.round(subtotal * BILLING_RULES.SUPPORT_PERCENT);
-            const maintShare = Math.round(subtotal * BILLING_RULES.MAINT_PERCENT); // System Maintenance
-            const gatewayFee = Math.round(subtotal * BILLING_RULES.GATEWAY_PERCENT);
-            const fixedFee = BILLING_RULES.FIXED_FEE;
-
-            // 3. Construct Line Items
-            const items = [
+            // 2. Calculate Fees based on Payment Mode
+            let items = [
                 { description: 'Room Rent', amount: rent, type: 'rent' },
                 ...(electricity > 0 ? [{ description: 'Electricity Charges', amount: electricity, type: 'utility' }] : []),
                 ...(water > 0 ? [{ description: 'Water Charges', amount: water, type: 'utility' }] : []),
                 ...(maintenance > 0 ? [{ description: 'Hostel Maintenance', amount: maintenance, type: 'service' }] : []),
-
-                // Automated Fees
-                { description: 'Fixed Service Fee', amount: fixedFee, type: 'fee' },
-                { description: `Platform Share (${(BILLING_RULES.PLATFORM_PERCENT * 100).toFixed(1)}%)`, amount: platformShare, type: 'fee' },
-                { description: `Development Share (${(BILLING_RULES.DEV_PERCENT * 100).toFixed(2)}%)`, amount: devShare, type: 'fee' },
-                { description: `Support Share (${(BILLING_RULES.SUPPORT_PERCENT * 100).toFixed(2)}%)`, amount: supportShare, type: 'fee' },
-                { description: `System Maintenance (${(BILLING_RULES.MAINT_PERCENT * 100).toFixed(1)}%)`, amount: maintShare, type: 'fee' },
-                { description: `Gateway Fee (${(BILLING_RULES.GATEWAY_PERCENT * 100).toFixed(2)}%)`, amount: gatewayFee, type: 'fee' }
             ];
 
-            const totalFees = fixedFee + platformShare + devShare + supportShare + maintShare + gatewayFee;
+            let totalFees = 0;
+            const paymentMode = adminProfile?.payment_mode || 'PLATFORM';
+
+            if (paymentMode === 'OWN') {
+                // For OWN Gateway: Admin collects fees from Tenant, then pays Nestify later.
+                // We add these as line items so the Tenant pays them.
+                const fixedFee = BILLING_RULES.FIXED_FEE;
+                const platformShare = Math.round(subtotal * BILLING_RULES.PLATFORM_PERCENT);
+
+                // Other small shares
+                const devShare = Math.round(subtotal * BILLING_RULES.DEV_PERCENT);
+                const supportShare = Math.round(subtotal * BILLING_RULES.SUPPORT_PERCENT);
+                const maintShare = Math.round(subtotal * BILLING_RULES.MAINT_PERCENT);
+
+                // Gateway Fee is 0 here because Admin pays it directly to Razorpay
+
+                items.push(
+                    { description: 'Platform Service Fee', amount: fixedFee, type: 'fee' },
+                    { description: `Platform Share (${(BILLING_RULES.PLATFORM_PERCENT * 100).toFixed(1)}%)`, amount: platformShare, type: 'fee' },
+                    { description: `Dev & Support Charges`, amount: devShare + supportShare + maintShare, type: 'fee' }
+                );
+
+                totalFees = fixedFee + platformShare + devShare + supportShare + maintShare;
+            } else {
+                // PLATFORM Mode: Fees are deducted automatically.
+                // We usually include them in the total so the tenant pays them, 
+                // but they are routed to Platform automatically.
+                // For simplicity, we'll add them as "Service Fees"
+                const gatewayFee = Math.round(subtotal * BILLING_RULES.GATEWAY_PERCENT);
+                const platformShare = Math.round(subtotal * BILLING_RULES.PLATFORM_PERCENT);
+
+                items.push(
+                    { description: 'Payment Gateway Fee', amount: gatewayFee, type: 'fee' },
+                    { description: 'Platform Service Fee', amount: platformShare, type: 'fee' }
+                );
+
+                totalFees = gatewayFee + platformShare;
+            }
+
             const total = subtotal + totalFees;
 
             const { error } = await supabase.from('invoices').insert({
@@ -314,6 +360,8 @@ export function AdminBilling() {
 
             if (error) throw error;
 
+            // ... (Email sending logic remains same)
+
             toast.success('Invoice created successfully');
             setIsCreateModalOpen(false);
             setNewBill({
@@ -328,8 +376,6 @@ export function AdminBilling() {
             fetchData();
         } catch (error: any) {
             toast.error(error.message);
-        } finally {
-            // setSaving(false); // Assuming setSaving is defined elsewhere
         }
     };
 
@@ -499,6 +545,11 @@ export function AdminBilling() {
                     </div>
 
                     <div className="flex gap-2">
+
+                        <Button variant="outline" onClick={handleRunAutoReminders} className="hidden md:flex text-amber-700 border-amber-200 hover:bg-amber-50">
+                            <Mail className="h-4 w-4 mr-2" /> Run Reminders
+                        </Button>
+
                         <Button variant="outline" onClick={() => setIsBulkModalOpen(true)}>
                             <Users className="h-4 w-4 mr-2" /> Group Generate
                         </Button>

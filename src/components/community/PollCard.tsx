@@ -79,7 +79,7 @@ export function PollCard({ post, onVote, userVoteId }: PollCardProps) {
 
                             <div className="relative flex justify-between items-center z-10">
                                 <span className={`font-medium ${isSelected ? 'text-blue-700' : 'text-slate-700'}`}>
-                                    {option.text}
+                                    {option.option_text}
                                 </span>
                                 {!!userVoteId && (
                                     <div className="flex items-center gap-2">

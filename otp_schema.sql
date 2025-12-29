@@ -1,28 +1,20 @@
--- Create OTP Codes table
-create table if not exists public.otp_codes (
-  id uuid default gen_random_uuid() primary key,
-  email text not null,
-  code text not null,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  expires_at timestamp with time zone not null
+-- Create table for storing OTPs
+CREATE TABLE IF NOT EXISTS public.verification_codes (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    code TEXT NOT NULL,
+    type TEXT NOT NULL DEFAULT 'PAYMENT_CONFIG', -- 'PAYMENT_CONFIG', 'LOGIN', etc.
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Enable RLS
-alter table public.otp_codes enable row level security;
+ALTER TABLE public.verification_codes ENABLE ROW LEVEL SECURITY;
 
--- Policies
-create policy "Allow public insert for OTP"
-  on public.otp_codes for insert
-  with check (true);
+-- Policy: Users can only see their own codes
+DROP POLICY IF EXISTS "Users can view own codes" ON public.verification_codes;
+CREATE POLICY "Users can view own codes" ON public.verification_codes
+    FOR SELECT USING (auth.uid() = user_id);
 
-create policy "Allow public select for OTP verification"
-  on public.otp_codes for select
-  using (true);
-
--- Function to clean up expired OTPs (optional, can be run manually or via cron)
-create or replace function delete_expired_otps()
-returns void as $$
-begin
-  delete from public.otp_codes where expires_at < now();
-end;
-$$ language plpgsql;
+-- Index for faster lookups
+CREATE INDEX IF NOT EXISTS idx_verification_codes_user_type ON public.verification_codes(user_id, type);
